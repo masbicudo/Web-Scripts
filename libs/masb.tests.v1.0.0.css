@@ -1,0 +1,120 @@
+/* Tests CSS v1.0.0
+ * Author: Miguel Angelo
+ * Created on: 2014-11-25
+ */
+body {
+    font-family: sans-serif;
+}
+table {
+    border-collapse: collapse;
+    margin: 5px;
+    font-size: 12px;
+}
+td {
+    border: 1px solid gray;
+    padding: 4px;
+    text-align: center;
+}
+
+td, th {
+    cursor: pointer;
+    overflow: hidden;
+    padding: 4px;
+}
+#details {
+    position: absolute;
+    background-color: rgba(255,255,255,0.95);
+    left:0;
+    top: 0;
+    padding: 10px;
+    border: 1px solid black;
+    border-radius: 8px;
+    box-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    ---text-shadow: 1px 1px 2px white, -1px -1px 2px white; /* IE slows down a lot with this! */
+    font-size: 12px;
+    white-space: pre;
+    visibility: hidden;
+}
+.msg-success {
+    color: green;
+    font-size: 13px;
+    font-weight: bold;
+    margin: 4px 0 0;
+}
+.msg-error {
+    color: red;
+    padding-left: 10px;
+    font-size: 10px;
+}
+.msg-warn {
+    color: orange;
+    padding-left: 10px;
+    font-size: 10px;
+}
+.msg-info {
+    color: dodgerblue;
+    padding-left: 10px;
+    font-size: 10px;
+}
+.msg-debug {
+    color: blue;
+    padding-left: 10px;
+    font-size: 10px;
+}
+.msg-log {
+    color: gray;
+    padding-left: 10px;
+    font-size: 10px;
+}
+.main-error {
+    color: red;
+    font-size: 13px;
+    font-weight: bold;
+    margin: 4px 0 0;
+}
+.call-stack {
+    font-size: 8px;
+    padding-left: 10px;
+}
+pre {
+    margin: 0;
+}
+.icon {
+    display: inline-block;
+    font-size: 9px;
+    padding: 1px 2px 1px 3px;
+    min-width: 8px;
+    color: white;
+    vertical-align: top;
+    float: right;
+    border-radius: 0 0 0 6px;
+    float: right;
+    top: -4px;
+    left: 4px;
+    position: relative;
+    box-sizing: border-box;
+    --text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
+    --box-shadow: inset 1px 1px 2px -1px rgba(0,0,0,0.5);
+}
+.icon-error {
+    background-color: rgba(255,0,0,0.3);
+}
+.icon-warn {
+    background-color: rgba(255,64,0,0.3);
+}
+.icon-info {
+    background-color: rgba(0,64,255,0.3);
+}
+.icon-none {
+    display: none;
+}
+.vert-section {
+    display: inline-block;
+    vertical-align: top;
+}
+.vert-section + .vert-section {
+    margin-left: 10px;
+    padding-left: 10px;
+    vertical-align: top;
+    border-left: 1px solid lightgray;
+}

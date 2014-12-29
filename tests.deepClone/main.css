@@ -1,0 +1,13 @@
+body {
+    font-family: sans-serif;
+}
+table {
+    border-collapse: collapse;
+    margin: 5px;
+    font-size: 12px;
+}
+td {
+    border: 1px solid gray;
+    padding: 4px;
+    text-align: center;
+}

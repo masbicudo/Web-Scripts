@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Deep clone test</title>
+    <link href="main.css" type="text/css" rel="stylesheet" />
+    <script src="../libs/masb.deepClone.js" type="text/javascript"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function(event) {
+
+            function DeepCloneable(a) { this.a = a; };
+            DeepCloneable.prototype = {
+                deepClone: function() {
+                    return new DeepCloneable(deepClone(this.a));
+                },
+                clone: function() {
+                    return new DeepCloneable(this.a);
+                }
+            };
+
+            function OnlyDeepCloneable(a) { this.a = a; };
+            OnlyDeepCloneable.prototype = {
+                deepClone: function() {
+                    return new OnlyDeepCloneable(deepClone(this.a));
+                }
+            };
+
+            function Cloneable(a) { this.a = a; };
+            Cloneable.prototype = {
+                clone: function() {
+                    return new Cloneable(this.a);
+                }
+            };
+
+            function NotCloneable(a) { this.a = a; };
+
+            var fn = function () {};
+            fn.mmm = "mmm";
+
+            var any = {x:1};
+            var frozen = Object.freeze({x:2});
+            var notCloneable = new NotCloneable({x:3});
+            var cloneable = new Cloneable({y:{x:4}});
+            var deepCloneable = new DeepCloneable({y:{x:5}});
+            var onlyDeepCloneable = new OnlyDeepCloneable({y:{x:6}});
+
+            window.obj = {
+                str: "abc1",
+                num: 1,
+                bl: false,
+                dt: new Date(),
+                rgx: /\s+/g,
+                nl: null,
+                und: undefined,
+                fn: fn,
+                arr: [2, {k:0}],
+                sub: any,
+                fz: frozen,
+                ncl: notCloneable,
+                cl: cloneable,
+                dcl: deepCloneable,
+                odcl: onlyDeepCloneable
+            };
+
+            var cnt = 5;
+            window.clone0 = deepClone(window.obj);
+            window.clone1 = deepClone(window.obj, {});
+            window.clone2 = deepClone(window.obj, {ignoreFrozen: false});
+            window.clone3 = deepClone(window.obj, {ignoreFrozen: true});
+            window.clone4 = deepClone(window.obj, {ignoreCloneableProps: false});
+
+            function Eq(n1, n2, p) {
+                var a = window[n1],
+                    b = window[n2],
+                    s = p.split('.');
+                for(var i = 0; i<s.length; i++) {
+                    a = a[s[i]];
+                    b = b[s[i]];
+                }
+                return a === b;
+            }
+            function Td(v,n1,n2,p,eq) {
+                return '<td style="background-color:'+(eq===v?'#bfb':'#fbb')+'">'
+                    +eq
+                    +'</td>';
+            }
+            function Test(p, v) {
+                var r = '<td>'+p+'</td>';
+                for(var it = 0; it < cnt; it++) {
+                    var n1 = 'clone'+it,
+                        n2 = 'obj',
+                        eq = Eq(n1, n2, p);
+                    r += Td(v[it], n1, n2, p, eq);
+                }
+                return '<tr>'+r+'</tr>';
+            }
+
+            var html = '';
+            html += '<table>'
+            for(var it = 0; it < cnt; it++)
+                html += '<tr><td>clone'+it+'</td><td>'+JSON.stringify(window['clone'+it])+'</td></tr>'
+            html += '</table>'
+            html += '<table>'
+            html += '<tr>'
+            html += '<td></td>'
+            for(var it = 0; it < cnt; it++)
+                html += '<td>clone'+it+'</td>'
+            html += '</tr>'
+
+            html += Test('str',     [ true,  true,  true,  true,  true]);
+            html += Test('num',     [ true,  true,  true,  true,  true]);
+            html += Test('bl',      [ true,  true,  true,  true,  true]);
+            html += Test('dt',      [ true,  true,  true,  true,  true]);
+            html += Test('rgx',     [ true,  true,  true,  true,  true]);
+            html += Test('nl',      [ true,  true,  true,  true,  true]);
+            html += Test('und',     [ true,  true,  true,  true,  true]);
+            html += Test('fn',      [ true,  true,  true,  true,  true]);
+            html += Test('arr',     [false, false, false, false, false]);
+            html += Test('arr.0',   [ true,  true,  true,  true,  true]);
+            html += Test('arr.1',   [false, false, false, false, false]);
+            html += Test('sub',     [false, false, false, false, false]);
+            html += Test('fz',      [false, false, false,  true, false]);
+            html += Test('ncl',     [ true,  true,  true,  true,  true]);
+            html += Test('ncl.a',   [ true,  true,  true,  true,  true]);
+            html += Test('cl',      [false, false, false, false, false]);
+            html += Test('cl.a',    [ true,  true,  true,  true, false]);
+            html += Test('dcl',     [false, false, false, false, false]);
+            html += Test('dcl.a',   [false, false, false, false, false]);
+            html += Test('dcl.a.y', [false, false, false, false, false]);
+            html += Test('odcl',    [false, false, false, false, false]);
+            html += Test('odcl.a',  [false, false, false, false, false]);
+            html += Test('odcl.a.y',[false, false, false, false, false]);
+
+            html += '</table>'
+
+            document.getElementById("output").innerHTML = html;
+        });
+    </script>
+</head>
+<body>
+<div id="output"></div>
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Modeler</title>
+<link href="main.css" type="text/css" rel="stylesheet" />
+<script src="webgl-utils.js" type="text/javascript"></script>
+<script src="../libs/masb.js-ext.js" type="text/javascript"></script>
+<script src="../libs/masb.extend.js" type="text/javascript"></script>
+<script src="../libs/masb.parsing.js" type="text/javascript"></script>
+<script src="../libs/masb.math.js" type="text/javascript"></script>
+<script src="mesh-lang.grammar.js" type="text/javascript"></script>
+<script src="modeler.js" type="text/javascript"></script>
+<script>
+    (function() {
+        this.modeler = new Modeler();
+        var wol = onload;
+        onload = function(evt) {
+            wol && wol(evt);
+            modeler.init();
+        };
+    })();
+</script>
+<!-- vertex shader -->
+<script id="2d-vertex-shader" type="x-shader/x-vertex">
+    attribute vec2 aPosition;
+
+    void main() {
+        gl_Position = vec4(aPosition, 0, 1);
+    }
+</script>
+<!-- fragment shader -->
+<script id="2d-fragment-shader" type="x-shader/x-fragment">
+    uniform lowp vec3 uColor;
+    
+    void main() {
+        gl_FragColor = vec4(uColor, 1.0);
+    }
+</script>
+<style type="text/css">
+    .tool-bar {
+        display: inline-block;
+        width: 100px;
+        height: 800px;
+        background-color: gray;
+        overflow: hidden;
+        margin: 0;
+        padding: 0;
+    }
+    .tool, .tool-header {
+        display: inline-block;
+        border: 1px solid black;
+        box-sizing: border-box;
+        background-color: gray;
+        color: black;
+        width: 50px;
+        height: 50px;
+        text-align: center;
+        vertical-align: middle;
+        cursor: pointer;
+        margin: 0;
+        padding: 0;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -khtml-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+    }
+    .tool > span {
+        line-height: 50px;
+    }
+    .tool-header{
+        height: 25px;
+        width: 100px;
+        background-color: #444;
+        color: white;
+        line-height: 25px;
+    }
+    .current {
+        display: inline-block;
+        width: 48px;
+        height: 48px;
+        background-color: white;
+    }
+</style>
+</head>
+<body>
+    <div style="vertical-align: top">
+    <canvas id="canvas" width="800" height="800"></canvas>
+    <div class="tool-bar" id="main-tool-bar" data-default="pen-tool">
+        <div class="tool-header">
+            <span>Actions</span>
+        </div><div class="tool" id="undo-tool" title="Undo">
+            <span>Undo</span>
+        </div><div class="tool" id="redo-tool" title="Redo">
+            <span>Redo</span>
+        </div><div class="tool" id="compile-tool" title="Compile">
+            <span>C</span>
+        </div><div class="tool" id="decompile-tool" title="Decompile">
+            <span>DC</span>
+        </div><div class="tool" id="clear-tool" title="Clear">
+            <span>Clr</span>
+        </div><div class="tool-header">
+            <span>Tools</span>
+        </div><div class="tool" id="move-point-tool" title="Move point">
+            <span>Mov-P</span>
+        </div><div class="tool" id="simple-tool" title="Simple">
+            <span>S</span>
+        </div><div class="tool" id="pen-tool" title="Pen">
+            <span>Pen</span>
+        </div><div class="tool" id="circle-tool" title="Circle">
+            <span>Circ</span>
+        </div>
+    </div>
+    <textarea id="coords-text" data-type="mesh-code" style="width: 400px; height: 800px;"></textarea>
+    </div>
+</body>
+</html>

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Lock designer</title>
+    <link href="main.css" type="text/css" rel="stylesheet" />
+    <script src="../libs/masb.js-ext.js" type="text/javascript"></script>
+    <script src="../libs/masb.extend.js" type="text/javascript"></script>
+    <script src="../libs/masb.parsing.js" type="text/javascript"></script>
+    <script src="../libs/masb.json.js" type="text/javascript"></script>
+    <script src="lock-lang.grammars.js" type="text/javascript"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function(event) {
+            var scripts = [];
+            Array.prototype.push.apply(scripts, document.getElementsByTagName("SCRIPT"));
+            scripts = scripts.filter(function(e){return e.id && e.innerHTML.trim();});
+            
+            var input = document.getElementById("input");
+            var combo = document.getElementById("combo");
+            combo.onchange = function(evt) {
+                    if (combo.value)
+                        input.value = document.getElementById(combo.value).innerHTML;
+                };
+                var opt0 = document.createElement("OPTION");
+                opt0.setAttribute("value", "");
+                opt0.innerHTML = "[ none ]";
+                combo.appendChild(opt0);
+            scripts.forEach(function(e) {
+                    var opt = document.createElement("OPTION");
+                    opt.setAttribute("value", e.id);
+                    opt.innerHTML = e.id;
+                    combo.appendChild(opt);
+                });
+            
+            var btnCompile = document.getElementById("compile");
+            btnCompile.onclick = function() {
+                // parsing some code and generating an AST
+                var cmp = new Compiler();
+                cmp.addGrammar(new MyGrammar3(), "pseudo-code", RecursiveCodeParser_Cached);
+                cmp.load(document, "input");
+                cmp.compile();
+                var r = cmp.getDocumentResult("input");
+
+                // reading the parsing results: errors and the AST
+                var errors = cmp.getAllErrors();
+                var output = document.getElementById("output");
+                if (errors && errors.length)
+                    output.value = "errors:\n" + errors.map(function(e){return "    "+e+"\n";}) + "\n";
+                else
+                    output.value = r.toJson();
+                
+                //console.error("errors: " + cmp.getAllErrors());
+                //console.info("classes: " + r.classes.map(function(c){return c.name.strName;}));
+                //console.info("tests: " + r.tests.map(function(c){return c.name.strName;}));
+            };
+        });
+        
+    </script>
+    <script id="pseudo-test" type="pseudo-code">
+        class SpinLock
+        {
+            int i
+
+            /// <summary>
+            /// Enters the spin-lock critical region.
+            /// </summary>
+            proc Enter
+            {
+                # comment
+                int j = -1, k = 10f
+            }
+            
+            proc Exit
+            {
+            }
+        }
+        class SpinLock1
+        {
+        }
+        test SpinLockTest
+        {
+        }
+    </script>
+    <script id="pseudo-0" type="pseudo-code">
+        class SpinLock
+        {
+            int i = 0
+            proc Enter
+            {
+                int j = -1
+              START:
+                swap i, j
+                test j
+                if 0
+                    return
+                sleep 0
+                goto START
+            }
+            proc Exit
+            {
+                i = 0
+            }
+        }
+        class ProgramSpinLock
+        {
+            SpinLock sl = new
+            proc Test
+            {
+                call sl.Enter
+                begin CRITICAL
+                end CRITICAL
+                call sl.Exit
+            }
+        }
+        test TestSpinLock
+        {
+            deny CRITICAL / CRITICAL
+            ProgramSpinLock prog = new
+            thread prog.Test
+        }
+    </script>
+    <script id="pseudo-1" type="pseudo-code">
+        import 'pseudo-0'
+        class ReadWriteLock
+        {
+            int readcount = 0, writecount = 0
+            SpinLock mutex_rdcnt = new, mutex_wrcnt = new, mutex_3 = new, w = new, r = new
+            
+            define wait x : call x.Enter
+            define signal x : call x.Exit
+            
+            proc EnterRead
+            {
+                wait mutex_3
+                    wait r
+                        wait mutex_rdcnt
+                            inc readcount
+                            test readcount, 1
+                            if equals
+                                wait w
+                        signal mutex_rdcnt
+                    signal r
+                signal mutex_3
+            }
+            proc ExitRead
+            {
+                wait mutex_rdcnt
+                    dec readcount
+                    test readcount
+                    if 0
+                        signal w
+                signal mutex_rdcnt
+            }
+            proc EnterWrite
+            {
+                wait mutex_wrcnt
+                    inc writecount
+                    test writecount, 1
+                    if equals
+                        wait r
+                signal mutex_wrcnt
+                wait w
+            }
+            proc ExitWrite
+            {
+                signal w
+                wait mutex_wrcnt
+                    dec writecount
+                    test writecount
+                    if 0
+                        signal r
+                signal mutex_wrcnt
+            }
+        }
+        class ProgramReadWriteLock
+        {
+            ReadWriteLock rwl = new
+            proc TestRead
+            {
+                call rwl.EnterRead
+                begin READ
+                end READ
+                call sl.ExitRead
+            }
+            proc TestWrite
+            {
+                call rwl.EnterWrite
+                begin WRITE
+                end WRITE
+                call sl.ExitWrite
+            }
+        }
+        test TestReadWriteLock
+        {
+            test SpinLock
+            deny READ / WRITE
+            deny WRITE / WRITE
+            ProgramReadWriteLock prog = new
+            thread prog.TestRead
+            thread prog.TestWrite
+        }
+    </script>
+</head>
+<body>
+    <style type="text/css">
+        h4 {
+            margin-bottom: 4px;
+        }
+        select {
+            width: 100%;
+            font-size: 20px;
+        }
+        textarea {
+            width: 100%;
+            height: 600px;
+        }
+    </style>
+    <div style="width: 600px; display: inline-block; margin: 10px;">
+        <div>
+            <h4>scripts</h4>
+            <select id="combo">
+            </select>
+        </div>
+        <h4>input</h4>
+        <textarea id="input" data-type="pseudo-code"></textarea>
+    </div>
+    <div style="width: 600px; display: inline-block; margin: 10px;">
+        <div>
+            <button id="compile" style="font-size: 20px;">Compile</button>
+        </div>
+        <h4>output</h4>
+        <textarea id="output"></textarea>
+    </div>
+</body>
+</html>
