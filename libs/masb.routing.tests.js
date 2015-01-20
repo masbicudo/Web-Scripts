@@ -93,9 +93,10 @@ function doRoutingTests(graphFlow, TestClass)
             marker = graphFlow.marker,
             acceptMarker = graphFlow.acceptMarker;
 
+        var tests = {};
         var allTests =
             alternate(
-                sequence(
+                tests.routeWithDefault = sequence(
                     CreateRouter(),
                     alternate(
                         AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index", id: null } }),
@@ -115,7 +116,7 @@ function doRoutingTests(graphFlow, TestClass)
                         });
                     })
                 ),
-                sequence(
+                tests.noValueNoDefault = sequence(
                     CreateRouter(),
                     alternate(
                         AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index" } }),
@@ -134,7 +135,7 @@ function doRoutingTests(graphFlow, TestClass)
                         });
                     })
                 ),
-                sequence(
+                tests.missingMiddle = sequence(
                     CreateRouter(),
                     AddRoute({
                         UriPattern: "{controller}/{action}/{id}",
@@ -150,7 +151,7 @@ function doRoutingTests(graphFlow, TestClass)
                         });
                     })
                 ),
-                sequence(
+                tests.constraintFail = sequence(
                     CreateRouter(),
                     AddRoute({
                         UriPattern: "Schedule/{date}/{id}",
@@ -169,7 +170,7 @@ function doRoutingTests(graphFlow, TestClass)
                         });
                     })
                 ),
-                sequence(
+                tests.matchBraces = sequence(
                     CreateRouter(),
                     alternate(
                         sequence(
@@ -193,7 +194,7 @@ function doRoutingTests(graphFlow, TestClass)
                         });
                     })
                 ),
-                sequence(
+                tests.syntaxErrors = sequence(
                     CreateRouter(),
                     catchError(alternate(
                         AddRoute({ UriPattern: "Schedule/{{id}" }),
@@ -207,7 +208,7 @@ function doRoutingTests(graphFlow, TestClass)
                         });
                     })
                 ),
-                sequence(
+                tests.emptySegment = sequence(
                     CreateRouter(),
                     catchError(alternate(
                         AddRoute({ UriPattern: "Schedule//" }),
@@ -221,7 +222,7 @@ function doRoutingTests(graphFlow, TestClass)
                         });
                     })
                 ),
-                sequence(
+                tests.unnamedPlaceholder = sequence(
                     CreateRouter(),
                     catchError(alternate(
                         AddRoute({ UriPattern: "Schedule/{}" }),
@@ -234,7 +235,7 @@ function doRoutingTests(graphFlow, TestClass)
                         });
                     })
                 ),
-                sequence(
+                tests.adjacentPlaceholders = sequence(
                     CreateRouter(),
                     catchError(alternate(
                         AddRoute({ UriPattern: "Schedule/{year}{month}{day}" }),
@@ -248,7 +249,7 @@ function doRoutingTests(graphFlow, TestClass)
                         });
                     })
                 ),
-                sequence(
+                tests.duplicatePlaceholders = sequence(
                     CreateRouter(),
                     catchError(alternate(
                         AddRoute({ UriPattern: "Schedule/{id}/{id}" }),
@@ -262,7 +263,7 @@ function doRoutingTests(graphFlow, TestClass)
                         });
                     })
                 ),
-                sequence(
+                tests.segmentPartiallyFilled = sequence(
                     CreateRouter(),
                     AddRoute({ UriPattern: "Schedule/{name}-{id}/{xpto}", Defaults: { name: null, id: null, xpto: null } }),
                     alternate(
@@ -281,7 +282,7 @@ function doRoutingTests(graphFlow, TestClass)
                         });
                     })
                 ),
-                sequence(
+                tests.validSegmentsAdvanced = sequence(
                     CreateRouter(),
                     alternate(
                         sequence(

@@ -45,11 +45,22 @@
 
     function Literal(value) {
          this.value = value.replace(/\{\{/g, "{").replace(/\}\}/g, "}");
+         this.regexp = escapeRegExp(this.value);
     }
+    Literal.prototype = {
+        toString: function() {
+            return "Literal: " + JSON.stringify(this.value);
+        }
+    };
 
     function Name(name) {
-         this.name = name;
+        this.name = name;
     }
+    Name.prototype = {
+        toString: function() {
+            return "Name: " + this.name;
+        }
+    };
 
     function getSegments(uriPattern) {
         var segments = uriPattern && uriPattern.split('/').map(function (seg) {
@@ -65,7 +76,7 @@
 
                 if (itSs == ss.length - 1) break;
 
-                if (typeof literal == 'string') items.push(new Literal(literal.replace('{{','{').replace('}}','}')));
+                if (typeof literal == 'string') items.push(new Literal(literal));
                 else if (typeof name == 'string') items.push(new Name(name));
             }
             return items;
@@ -104,24 +115,25 @@
     function matchSegments(segments, uri) {
         var rgxStr = "^";
         for (var itSeg = 0; itSeg < segments.length; itSeg++) {
-            var subSegs = segments[itSeg];
-            rgxStr += itSeg ? "(?:\/" : "(?:\~\/";
+            var subSegs = segments[itSeg], cntUnclosed = 0;
+            if(cntUnclosed!=0)    debugger;
+            rgxStr += "(?:" + (itSeg ? "\\/" : "\\~\\/");
             for (var itSub = 0; itSub < subSegs.length; itSub++) {
                 var item = subSegs[itSub];
                 if (item instanceof Name) {
                     var adjLit = subSegs[itSub + 1],
-                        adjLitRgx = adjLit instanceof Literal ? "|" + escapeRegExp(adjLit.value) : "";
-
-                    rgxStr += "((?:(?!\/" + adjLitRgx + ").)*)";
+                        adjLitRgx = adjLit instanceof Literal ? "|" + adjLit.regexp : "";
+                    rgxStr += "((?:(?!\\/" + adjLitRgx + ").)*)";
                 } else if (item instanceof Literal) {
-                    rgxStr += escapeRegExp(item.value);
+                    rgxStr += "(?:" + item.regexp;
+                    cntUnclosed++;
                 }
             }
+            for (var itU = 0; itU < cntUnclosed; itU++)
+                rgxStr += ")?";
         }
-
         for (var itP = 0; itP < segments.length; itP++)
             rgxStr += ")?";
-
         rgxStr += "$";
 
         var regex = new RegExp(rgxStr, 'g');
