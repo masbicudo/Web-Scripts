@@ -1,10 +1,11 @@
-// Graph Flow v1.5.0    2014-11-30
+// Graph Flow v1.6.0    2015-01-19
 // Author: Miguel Angelo
 // Licence:
 //      Contact me to get a licence
 //          -- OR --
-//      Choose one of these open source licences: TODO: add open source licences
+//      Choose one of these open source licences: none
 // Versions:
+//  1.6.0   Catch combinator
 //  1.5.0   Better flow syntax: sequence, alternate, combine
 //  1.4.1   BUG: the same NoOp function cannot be used in multiple places, it must be replicated
 //  1.4.0   Extensibility: inherit - allows the control of `gof` inherited properties from `g` and `fs`
@@ -37,6 +38,7 @@ function createGraphFlow() {
     GF.combine = combine;
     GF.combinators = {
         valueCombinator: valueCombinator,
+        catchCombinator: catchCombinator,
         funcCombinator: funcCombinator
     };
     var push = Array.prototype.push;
@@ -114,6 +116,21 @@ function createGraphFlow() {
         return GoF;
     }
     valueCombinator.procArgs = identity;
+    function catchCombinator(g, argsFn, fs) {
+        function GoF_catch() {
+            var args = argsFn.apply(this, arguments);
+            var err = null;
+            try { g.apply(this, args); }
+            catch (e) { err = e; }
+            return err;
+        };
+        if (g.hasOwnProperty('inherit')) {
+            GoF_catch.inherit = g.inherit;
+            GoF_catch.combinator = valueCombinator;
+        }
+        return GoF_catch;
+    }
+    catchCombinator.procArgs = identity;
     function funcCombinator(g, argsFn, fs) {
         // this is a special combinator that passes
         // `fs` functions to the `g` function,
@@ -121,7 +138,6 @@ function createGraphFlow() {
         // that passes the values returned from the `fs`
 
         function gargsFn() {
-            //debugger;
             var _this = this,
                 fargs = argumentsToArray(arguments);
             var result = fs
