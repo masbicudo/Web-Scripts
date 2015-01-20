@@ -21,6 +21,10 @@ td, th {
     overflow: hidden;
     padding: 4px;
 }
+th {
+    padding-right: 8px;
+    text-align: right;
+}
 #details {
     position: absolute;
     background-color: rgba(255,255,255,0.95);
@@ -47,7 +51,7 @@ td, th {
     font-size: 10px;
 }
 .msg-warn {
-    color: orange;
+    color: #e93;
     padding-left: 10px;
     font-size: 10px;
 }

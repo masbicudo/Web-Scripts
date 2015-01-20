@@ -1,5 +1,6 @@
-// Tests Framewok JSX-UI v1.0.0    2014-12-14
+// Tests Framewok JSX-UI v1.0.1    2014-12-14
 //  author: Miguel Angelo
+// v1.0.1 - corrected bug when displaying errors of type matching /.+Error$/
 function sumator(a,b) {
     return a + b;
 }
@@ -89,20 +90,22 @@ var DataDetailsBox = React.createClass({
 
                 if (data.run.isError) {
 
-                    var title = data.run.result.name === 'Error'
+                    var tip = data.run && data.run.result
                         ? data.run.result.stack
                         : null;
 
                     rows.push(
-                        <div className="main-error" title={title}>
+                        <div className="main-error" title={tip}>
                             {
                             typeof data.run.result === 'string' ?
                                 data.run.result :
-                            data.run.result.name === 'Error' ?
+                            data.run && data.run.result && data.run.result.message ?
                                 [   data.run.result.message,
-                                    <div className='call-stack'>
-                                        call stack available
-                                    </div> ] :
+                                    !tip ? null : (
+                                        <div className='call-stack'>
+                                            call stack available
+                                        </div>
+                                        )] :
                             null
                             }
                         </div>);
