@@ -5,8 +5,16 @@
 //  an external agent can determine what to
 //  render next.
 //
-//  This will mimic the behaviour of ASP.NET
-//  routing as seamlessly as possible.
+//  This will mimic the behaviour of ASP.NET routing with the following exceptions:
+//  1) when building patterns:
+//      - none yet
+//  2) when matching URI's:
+//      - pattern "{x}-{y}" matches '~/x-y-z/' as:
+//          Here:    x -> 'x';   y -> 'y-z'
+//          ASP.NET: x -> 'x-y'; y -> 'z'
+//      - pattern "{x?}-{y}" matches '~/---/' as:
+//          Here:    x -> no match (x = '' and y = '--', but x is a middle place-holder)
+//          ASP.NET: x -> '-'; y -> '-'
 //
 //  This will not:
 //  - change URI for single-page apps
@@ -19,10 +27,15 @@
                 target[k] = source[k];
         return target;
     }
+    function remLine(str, num) {
+        var lines = str.split('\n');
+        lines.splice(num-1, 1);
+        return lines.join('\n');
+    }
     function RouteError(type, message) {
         if (window.chrome) {
             var err = new Error();
-            this.__defineGetter__('stack', function(){return err.stack;});
+            this.__defineGetter__('stack', function(){return remLine(err.stack, 1);});
             this.__defineSetter__('stack', function(value){err.stack=value;});
         }
         this.message = message;
@@ -46,6 +59,7 @@
     function Literal(value) {
          this.value = value.replace(/\{\{/g, "{").replace(/\}\}/g, "}");
          this.regexp = escapeRegExp(this.value);
+        Object.freeze(this);
     }
     Literal.prototype = {
         toString: function() {
@@ -53,16 +67,17 @@
         }
     };
 
-    function Name(name) {
+    function PlaceHolderBase(name) {
         this.name = name;
+        Object.freeze(this);
     }
-    Name.prototype = {
+    PlaceHolderBase.prototype = {
         toString: function() {
             return "Name: " + this.name;
         }
     };
 
-    function getSegments(uriPattern) {
+    function getSegments(uriPattern, LiteralClass, PlaceHolderClass) {
         var segments = uriPattern && uriPattern.split('/').map(function (seg) {
             var ss = seg.split(/(?:((?:[^\{\}]|\{\{|\}\})+)|\{([^\{\}]*)(?!\}\})\})/g),
                 items = [];
@@ -76,8 +91,8 @@
 
                 if (itSs == ss.length - 1) break;
 
-                if (typeof literal == 'string') items.push(new Literal(literal));
-                else if (typeof name == 'string') items.push(new Name(name));
+                if (typeof literal == 'string') items.push(new LiteralClass(literal));
+                else if (typeof name == 'string') items.push(new PlaceHolderClass(name));
             }
             return items;
         });
@@ -93,13 +108,13 @@
                 throw new RouteError(types.EMPTY_SEGMENT, "Invalid route pattern: empty segment #" + itSeg);
             for (var itSub = 0; itSub < subSegs.length; itSub++) {
                 var item = subSegs[itSub];
-                if (item instanceof Name) {
+                if (item instanceof PlaceHolderBase) {
                     if (prevName !== '') throw new RouteError(types.ADJACENT_PLACEHOLDERS, "Invalid route pattern: '{" + prevName + "}' and '{" + item.name + "}' cannot be adjacent");
                     if (usedNames[item.name]) throw new RouteError(types.DUPLICATE_PLACEHOLDER, "Invalid route pattern: '{" + item.name + "}' used multiple times");
                     if (!item.name) throw new RouteError(types.UNNAMED_PLACEHOLDER, "Invalid route pattern: found '{}'");
                     usedNames[item.name] = true;
                 }
-                prevName = item instanceof Name ? item.name : '';
+                prevName = item instanceof PlaceHolderBase ? item.name : '';
             }
             prevName = '';
         }
@@ -112,79 +127,61 @@
         return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
     }
 
-    function matchSegments(segments, uri) {
-        var rgxStr = "^";
-        for (var itSeg = 0; itSeg < segments.length; itSeg++) {
-            var subSegs = segments[itSeg], cntUnclosed = 0;
-            if(cntUnclosed!=0)    debugger;
-            rgxStr += "(?:" + (itSeg ? "\\/" : "\\~\\/");
-            for (var itSub = 0; itSub < subSegs.length; itSub++) {
-                var item = subSegs[itSub];
-                if (item instanceof Name) {
-                    var adjLit = subSegs[itSub + 1],
-                        adjLitRgx = adjLit instanceof Literal ? "|" + adjLit.regexp : "";
-                    rgxStr += "((?:(?!\\/" + adjLitRgx + ").)*)";
-                } else if (item instanceof Literal) {
-                    rgxStr += "(?:" + item.regexp;
-                    cntUnclosed++;
-                }
-            }
-            for (var itU = 0; itU < cntUnclosed; itU++)
-                rgxStr += ")?";
-        }
-        for (var itP = 0; itP < segments.length; itP++)
-            rgxStr += ")?";
-        rgxStr += "$";
-
-        var regex = new RegExp(rgxStr, 'g');
-
-        var result = regex.exec(uri).map(function(s){return s||undefined;});
-        result.shift();
-        return result;
-    }
-
     function validateSegmentValues(segments, route, segValues) {
         var segIdx = 0,
-            optSegs = 0;
+            glbFilled = 0,
+            glbMissing = 0;
 
         for (var itSeg = 0; itSeg < segments.length; itSeg++) {
 
             var subSegs = segments[itSeg],
                 missing = 0,
-                filled = 0;
+                filled = 0,
+                literals = 0;
 
             for (var itSub = 0; itSub < subSegs.length; itSub++) {
-                var item = subSegs[itSub];
-                if (item instanceof Name) {
+                var item = subSegs[itSub],
+                    value = segValues[segIdx++];
+                    
+                if (item instanceof PlaceHolderBase) {
                     var name = item.name,
-                        rgxStr = route.Constraints && route.Constraints[name],
-                        def = route.Defaults && route.Defaults[name],
-                        value = segValues[segIdx++];
+                        constraint = route.Constraints && route.Constraints[name],
+                        def = route.Defaults && route.Defaults[name];
 
-                    // has constraint
-                    if (rgxStr) {
-                        var regex = new RegExp(rgxStr, 'g');
+                    // constraint fail
+                    if (typeof constraint == 'string') {
+                        var regex = new RegExp(constraint, 'g');
                         if (!regex.test(value))
+                            return "Match failed: constraint of '{" + name + "}' did not match";
+                    }
+                    else if (typeof constraint == 'function') {
+                        if (!constraint(value))
                             return "Match failed: constraint of '{" + name + "}' did not match";
                     }
 
                     // no value and no default
                     if (!value && typeof def == 'undefined')
                         return "Match failed: no value and no default for '{" + name + "}'";
-
-                    if (!value) missing++;
-                    else filled++;
+                }
+                else if (item instanceof Literal) {
+                    // ASP.NET: literal can never be missing
+                    if (value !== item.value)
+                        return "Match failed: literal cannot be missing '" + item.value + "'";
+                    literals++;
                 }
 
-                // segment is partially filled
-                if (filled && missing)
-                    return "Match failed: segment is partially filled";
+                if (!value) missing++;
+                else filled++;
+            }
 
-                // missing segments may only appear at end
-                if (filled && optSegs)
-                    return "Match failed: missing segments may only appear at end";
+            // ASP.NET: segment is partially filled
+            if (literals && missing)
+                return "Match failed: segment is partially filled";
 
-                if (missing) optSegs++;
+            // ASP.NET: missing segments may only appear at end
+            if (!filled) glbMissing++;
+            else if (glbMissing) {
+                return "Match failed: missing segments may only appear at end";
             }
         }
         return null;
@@ -197,19 +194,86 @@
             var subSegs = segments[itSeg];
             for (var itSub = 0; itSub < subSegs.length; itSub++) {
                 var item = subSegs[itSub];
-                if (item instanceof Name)
-                    r[item.name] = segValues[segIdx++];
+                if (item instanceof PlaceHolderBase)
+                    r[item.name] = segValues[segIdx];
+                segIdx++;
             }
         }
         return r;
     }
 
+    function getSegmentsMatcher(segments) {
+        var rgxStr = "^";
+        for (var itSeg = 0; itSeg < segments.length; itSeg++) {
+            var subSegs = segments[itSeg], cntUnclosed = 0;
+            rgxStr += "(?:" + (itSeg ? "\\/" : "\\~\\/");
+            for (var itSub = 0; itSub < subSegs.length; itSub++) {
+                var item = subSegs[itSub];
+                if (item instanceof PlaceHolderBase) {
+                    var adjLit = subSegs[itSub + 1],
+                        adjLitRgx = adjLit instanceof Literal ? "|" + adjLit.regexp : "",
+                        op = item.isOptional ? '*' : '+';
+
+                    rgxStr += "((?:(?!\\/" + adjLitRgx + ").)" + op + ")?";
+                } else if (item instanceof Literal) {
+                    rgxStr += "(?:" + "(" + item.regexp + ")";
+                    cntUnclosed++;
+                }
+            }
+            for (var itU = 0; itU < cntUnclosed; itU++)
+                rgxStr += ")?";
+        }
+        for (var itP = 0; itP < segments.length; itP++)
+            rgxStr += ")?";
+        rgxStr += "$";
+
+        var regex = new RegExp(rgxStr, 'g');
+
+        SegmentsMatcher.regex = regex;
+        function SegmentsMatcher(uri) {
+                regex.lastIndex = 0;
+                var result = regex.exec(uri);
+                if (!result) return null;
+                result.shift();
+                return result.map(function(s){return s||undefined;});
+            };
+        return SegmentsMatcher;
+    }
+    
     function Route(route) {
-        this.segments = getSegments(route.UriPattern);
+        if (!route || typeof route != 'object')
+            throw new Error("Invalid route information: route argument cannot be missing");
+
+        var constraints = route.Constraints ? extend({}, route.Constraints) : {};
+
+        function PlaceHolder(name) {
+            this.name = name;
+            this.isOptional = !!route.Defaults && route.Defaults.hasOwnProperty(name) && typeof route.Defaults[name] !== 'undefined';
+            if (this.isOptional)
+                this.defaultValue = route.Defaults[name];
+            this.isConstrained = constraints.hasOwnProperty(name);
+            if (this.isConstrained) {
+                this.constraint = constraints[name];
+                delete constraints[name];
+            }
+            Object.freeze(this);
+        }
+        PlaceHolder.prototype = Object.create(PlaceHolderBase.prototype);
+
+        var segments = getSegments(route.UriPattern, Literal, PlaceHolder);
+        var segmentsMatcher = getSegmentsMatcher(segments);
+
+        // properties with extracted information from the route object
+        this.segments = segments;
+        this.match = segmentsMatcher;
+        this.contextChecks = constraints;
+
+        // source object properties
         this.UriPattern = route.UriPattern;
         this.DataTokens = route.DataTokens;
         this.Defaults = route.Defaults;
         this.Constraints = route.Constraints;
+
         Object.freeze(this);
     }
 
@@ -239,7 +303,9 @@
                 // Trying to match the route information with the given URI.
                 // Convert the URI pattern to a RegExp that can extract information from a real URI.
                 var segments = route.segments;
-                var segValues = matchSegments(segments, uri);
+                var segValues = route.match(uri);
+                if (!segValues)
+                    return new RouteMatch(null, "Match failed: URI does not match");
                 var validation = validateSegmentValues(segments, route, segValues);
 
                 if (validation)

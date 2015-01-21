@@ -351,6 +351,7 @@ function createGraphFlow() {
                 args = [];
             flattenArgs(args, argumentsToArray(arguments));
             return ffss
+                .filter(function(fs){return typeof fs != 'undefined';})
                 .map(function(fs) {
                     var ctx = (fs.createContext || ctxCreator).call(GF, fs, _this),
                         args2 = fn && fn.combinator && fn.combinator.procArgs

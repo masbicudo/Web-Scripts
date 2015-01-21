@@ -93,217 +93,288 @@ function doRoutingTests(graphFlow, TestClass)
             marker = graphFlow.marker,
             acceptMarker = graphFlow.acceptMarker;
 
-        var tests = {};
-        var allTests =
-            alternate(
-                tests.routeWithDefault = sequence(
-                    CreateRouter(),
-                    alternate(
-                        AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index", id: null } }),
-                        AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", id: null } }),
-                        AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { action: "Index", id: null } }),
-                        AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { id: null } })
-                    ),
-                    alternate(
-                        GetRouteDataFromUri("~/Home/Index/"),
-                        GetRouteDataFromUri("~/Home/Index")
-                    ),
-                    logProps(),
-                    writeError('warn'),
-                    test("route data with default value", function(r) {
-                        this.assert(function() {
-                            return r.data.controller == "Home" && r.data.action == "Index" && typeof r.data.id == 'undefined';
-                        });
-                    })
+        var tests = {
+            routeWithDefault: sequence(
+                CreateRouter(),
+                alternate(
+                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index", id: null } }),
+                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", id: null } }),
+                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { action: "Index", id: null } }),
+                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { id: null } })
                 ),
-                tests.noValueNoDefault = sequence(
-                    CreateRouter(),
-                    alternate(
-                        AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index" } }),
-                        AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home" } }),
-                        AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { action: "Index" } }),
-                        AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { } })
-                    ),
-                    alternate(
-                        GetRouteDataFromUri("~/Home/Index/"),
-                        GetRouteDataFromUri("~/Home/Index")
-                    ),
-                    logProps(),
-                    test("no value and no default {id}", function(r) {
-                        this.assert(function() {
-                            return r.error === "Match failed: no value and no default for '{id}'";
-                        });
-                    })
+                alternate(
+                    GetRouteDataFromUri("~/Home/Index/"),
+                    GetRouteDataFromUri("~/Home/Index")
                 ),
-                tests.missingMiddle = sequence(
-                    CreateRouter(),
-                    AddRoute({
-                        UriPattern: "{controller}/{action}/{id}",
-                        Defaults: { controller: "Home", action: "Index", id: null } }),
-                    alternate(
-                        GetRouteDataFromUri("~/Home//20"),
-                        GetRouteDataFromUri("~//Index/20"),
-                        GetRouteDataFromUri("~///20")
-                    ),
-                    test("middle missing parameter", function(r) {
-                        this.assert(function() {
-                            return r.error === "Match failed: missing segments may only appear at end";
-                        });
-                    })
+                logProps(),
+                writeError('warn'),
+                test("route data with default value", function(r) {
+                    this.assert(function() {
+                        return r.data.controller == "Home" && r.data.action == "Index" && typeof r.data.id == 'undefined';
+                    });
+                })
+            ),
+            noValueNoDefault: sequence(
+                CreateRouter(),
+                alternate(
+                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index" } }),
+                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home" } }),
+                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { action: "Index" } }),
+                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { } })
                 ),
-                tests.constraintFail = sequence(
-                    CreateRouter(),
+                alternate(
+                    GetRouteDataFromUri("~/Home/Index/"),
+                    GetRouteDataFromUri("~/Home/Index")
+                ),
+                logProps(),
+                test("no value and no default {id}", function(r) {
+                    this.assert(function() {
+                        return r.error === "Match failed: no value and no default for '{id}'";
+                    });
+                })
+            ),
+            missingMiddle: sequence(
+                CreateRouter(),
+                alternate(
+                    sequence(
+                        AddRoute({
+                            UriPattern: "{controller}/{action}/{id}",
+                            Defaults: { controller: "Home", action: "Index", id: null } }),
+                        alternate(
+                            GetRouteDataFromUri("~/Home//20"),
+                            GetRouteDataFromUri("~//Index/20"),
+                            GetRouteDataFromUri("~///20")
+                        )
+                    )
+                ),
+                logProps(),
+                writeError('log'),
+                test("middle missing parameter", function(r) {
+                    this.assert(function() {
+                        return r.error === "Match failed: missing segments may only appear at end";
+                    });
+                })
+            ),
+            constraintFail: sequence(
+                CreateRouter(),
+                alternate(
                     AddRoute({
                         UriPattern: "Schedule/{date}/{id}",
                         Defaults: { controller: "Schedule", action: "Index", id: null },
-                        Constraints: { date: "\\d{4}-\\d\\d-\\d\\d" } }),
-                    alternate(
-                        GetRouteDataFromUri("~/Schedule/2015-01-17"),
-                        GetRouteDataFromUri("~/Schedule/2015-01-17/"),
-                        GetRouteDataFromUri("~/Schedule/2015-01-17/20")
-                    ),
-                    writeError('log'),
-                    logProps(),
-                    test("constraint fail", function(r) {
-                        this.assert(function() {
-                            return r.data.controller == "Schedule" && r.data.action == "Index" && r.data.date == '2015-01-17';
-                        });
-                    })
+                        Constraints: { date: "^\\d{4}-\\d\\d-\\d\\d$" } }),
+                    AddRoute({
+                        UriPattern: "Schedule/{date}/{id}",
+                        Defaults: { controller: "Schedule", action: "Index", id: null },
+                        Constraints: { date: function(val,ctx) { return /^\d{4}-\d\d-\d\d$/g.test(val); } } })
                 ),
-                tests.matchBraces = sequence(
-                    CreateRouter(),
-                    alternate(
-                        sequence(
-                            AddRoute({ UriPattern: "Schedule/{{id}}" }),
-                            GetRouteDataFromUri("~/Schedule/{id}")
-                        ),
-                        sequence(
-                            AddRoute({ UriPattern: "Schedule/{{id" }),
-                            GetRouteDataFromUri("~/Schedule/{id")
-                        ),
-                        sequence(
-                            AddRoute({ UriPattern: "Schedule/id}}" }),
-                            GetRouteDataFromUri("~/Schedule/id}")
+                alternate(
+                    GetRouteDataFromUri("~/Schedule/2015-01-m7"),
+                    GetRouteDataFromUri("~/Schedule/2015-m1-17/"),
+                    GetRouteDataFromUri("~/Schedule/m015-01-17/20")
+                ),
+                writeError('log'),
+                logProps(),
+                test("constraint fail", function(r) {
+                    this.assert(function() {
+                        return r.error == "Match failed: constraint of '{date}' did not match";;
+                    });
+                })
+            ),
+            matchBraces: sequence(
+                CreateRouter(),
+                alternate(
+                    sequence(
+                        AddRoute({ UriPattern: "Schedule/{{id}}" }),
+                        GetRouteDataFromUri("~/Schedule/{id}")
+                    ),
+                    sequence(
+                        AddRoute({ UriPattern: "Schedule/{{id" }),
+                        GetRouteDataFromUri("~/Schedule/{id")
+                    ),
+                    sequence(
+                        AddRoute({ UriPattern: "Schedule/id}}" }),
+                        GetRouteDataFromUri("~/Schedule/id}")
+                    )
+                ),
+                writeError('log'),
+                logProps(),
+                test("match literal with '{' and '}'", function(r) {
+                    this.assert(function() {
+                        return r.data != null;
+                    });
+                })
+            ),
+            syntaxErrors: sequence(
+                CreateRouter(),
+                catchError(alternate(
+                    AddRoute({ UriPattern: "Schedule/{{id}" }),
+                    AddRoute({ UriPattern: "Schedule/{id}}" })
+                )),
+                writeError('log'),
+                logProps(),
+                test("syntax error", function(err) {
+                    this.assert(function() {
+                        return err instanceof Error && err.type == "SYNTAX_ERROR";
+                    });
+                })
+            ),
+            emptySegment: sequence(
+                CreateRouter(),
+                catchError(alternate(
+                    AddRoute({ UriPattern: "Schedule//" }),
+                    AddRoute({ UriPattern: "Schedule//{id}" })
+                )),
+                writeError('log'),
+                logProps(),
+                test("empty segment", function(err) {
+                    this.assert(function() {
+                        return err instanceof Error && err.type == "EMPTY_SEGMENT";
+                    });
+                })
+            ),
+            unnamedPlaceholder: sequence(
+                CreateRouter(),
+                catchError(alternate(
+                    AddRoute({ UriPattern: "Schedule/{}" }),
+                    AddRoute({ UriPattern: "Schedule/{}/" })
+                )),
+                writeError('log'),
+                test("place-holder without name", function(err) {
+                    this.assert(function() {
+                        return err instanceof Error && err.type == "UNNAMED_PLACEHOLDER";
+                    });
+                })
+            ),
+            adjacentPlaceholders: sequence(
+                CreateRouter(),
+                catchError(alternate(
+                    AddRoute({ UriPattern: "Schedule/{year}{month}{day}" }),
+                    AddRoute({ UriPattern: "Schedule/{year}{month}{day}/{id}" }),
+                    AddRoute({ UriPattern: "{year}{month}{day}" })
+                )),
+                writeError('log'),
+                test("no adjacent place-holders", function(err) {
+                    this.assert(function() {
+                        return err instanceof Error && err.type == "ADJACENT_PLACEHOLDERS";
+                    });
+                })
+            ),
+            duplicatePlaceholders: sequence(
+                CreateRouter(),
+                catchError(alternate(
+                    AddRoute({ UriPattern: "Schedule/{id}/{id}" }),
+                    AddRoute({ UriPattern: "Schedule/{id}-{id}" }),
+                    AddRoute({ UriPattern: "Schedule/{name}-{id}/{name}/{id}" })
+                )),
+                writeError('log'),
+                test("duplicate place-holders", function(err) {
+                    this.assert(function() {
+                        return err instanceof Error && err.type == "DUPLICATE_PLACEHOLDER";
+                    });
+                })
+            ),
+            segmentPartiallyFilled: sequence(
+                CreateRouter(),
+                alternate(
+                    sequence(
+                        AddRoute({ UriPattern: "Schedule/{name}-{id}/{xpto}", Defaults: { name: null, id: null, xpto: null } }),
+                        alternate(
+                            GetRouteDataFromUri("~/Schedule/Miguel-"),
+                            GetRouteDataFromUri("~/Schedule/-/"),
+                            GetRouteDataFromUri("~/Schedule/-12/any"),
+                            GetRouteDataFromUri("~/Schedule/Miguel-/any"),
+                            GetRouteDataFromUri("~/Schedule/-12"),
+                            GetRouteDataFromUri("~/Schedule/-/any")
                         )
                     ),
-                    writeError('log'),
-                    logProps(),
-                    test("match literal with '{' and '}'", function(r) {
-                        this.assert(function() {
-                            return r.data != null;
-                        });
-                    })
+                    sequence(
+                        AddRoute({ UriPattern: "File/{name}-{type}", Defaults: { name: null, type: null } }),
+                        alternate(
+                            GetRouteDataFromUri("~/File/fileName-"),
+                            GetRouteDataFromUri("~/File/-txt"),
+                            GetRouteDataFromUri("~/File/-")
+                        )
+                    )
                 ),
-                tests.syntaxErrors = sequence(
-                    CreateRouter(),
-                    catchError(alternate(
-                        AddRoute({ UriPattern: "Schedule/{{id}" }),
-                        AddRoute({ UriPattern: "Schedule/{id}}" })
-                    )),
-                    writeError('log'),
-                    logProps(),
-                    test("syntax error", function(err) {
-                        this.assert(function() {
-                            return err instanceof Error && err.type == "SYNTAX_ERROR";
-                        });
-                    })
-                ),
-                tests.emptySegment = sequence(
-                    CreateRouter(),
-                    catchError(alternate(
-                        AddRoute({ UriPattern: "Schedule//" }),
-                        AddRoute({ UriPattern: "Schedule//{id}" })
-                    )),
-                    writeError('log'),
-                    logProps(),
-                    test("empty segment", function(err) {
-                        this.assert(function() {
-                            return err instanceof Error && err.type == "EMPTY_SEGMENT";
-                        });
-                    })
-                ),
-                tests.unnamedPlaceholder = sequence(
-                    CreateRouter(),
-                    catchError(alternate(
-                        AddRoute({ UriPattern: "Schedule/{}" }),
-                        AddRoute({ UriPattern: "Schedule/{}/" })
-                    )),
-                    writeError('log'),
-                    test("place-holder without name", function(err) {
-                        this.assert(function() {
-                            return err instanceof Error && err.type == "UNNAMED_PLACEHOLDER";
-                        });
-                    })
-                ),
-                tests.adjacentPlaceholders = sequence(
-                    CreateRouter(),
-                    catchError(alternate(
-                        AddRoute({ UriPattern: "Schedule/{year}{month}{day}" }),
-                        AddRoute({ UriPattern: "Schedule/{year}{month}{day}/{id}" }),
-                        AddRoute({ UriPattern: "{year}{month}{day}" })
-                    )),
-                    writeError('log'),
-                    test("no adjacent place-holders", function(err) {
-                        this.assert(function() {
-                            return err instanceof Error && err.type == "ADJACENT_PLACEHOLDERS";
-                        });
-                    })
-                ),
-                tests.duplicatePlaceholders = sequence(
-                    CreateRouter(),
-                    catchError(alternate(
-                        AddRoute({ UriPattern: "Schedule/{id}/{id}" }),
-                        AddRoute({ UriPattern: "Schedule/{id}-{id}" }),
-                        AddRoute({ UriPattern: "Schedule/{name}-{id}/{name}/{id}" })
-                    )),
-                    writeError('log'),
-                    test("duplicate place-holders", function(err) {
-                        this.assert(function() {
-                            return err instanceof Error && err.type == "DUPLICATE_PLACEHOLDER";
-                        });
-                    })
-                ),
-                tests.segmentPartiallyFilled = sequence(
-                    CreateRouter(),
-                    AddRoute({ UriPattern: "Schedule/{name}-{id}/{xpto}", Defaults: { name: null, id: null, xpto: null } }),
-                    alternate(
-                        GetRouteDataFromUri("~/Schedule/-12"),
-                        GetRouteDataFromUri("~/Schedule/Miguel-"),
-                        //GetRouteDataFromUri("~/Schedule/Miguel"), // this is allowed!
-                        GetRouteDataFromUri("~/Schedule/-12/any"),
-                        GetRouteDataFromUri("~/Schedule/Miguel-/any"),
-                        GetRouteDataFromUri("~/Schedule/Miguel/any"), // this is not allowed
-                        GetRouteDataFromUri("~/Schedule/-/any") // this is not allowed
-                    ),
-                    writeError('log'),
-                    test("segment is partially filled", function(r) {
-                        this.assert(function() {
-                            return r.error == "Match failed: segment is partially filled";
-                        });
-                    })
-                ),
-                tests.validSegmentsAdvanced = sequence(
-                    CreateRouter(),
-                    alternate(
-                        sequence(
-                            AddRoute({ UriPattern: "Schedule/{name}-{id}/{xpto}", Defaults: { name: null, id: null, xpto: null } }),
-                            GetRouteDataFromUri("~/Schedule/Miguel") // this is allowed!
-                        ),
-                        sequence(
-                            AddRoute({ UriPattern: "Schedule/{name}-{id}/seg/{xpto}", Defaults: { name: null, id: null, xpto: null } }),
-                            GetRouteDataFromUri("~/Schedule/Miguel") // this is allowed!
+                logProps(),
+                writeError('log'),
+                test("segment is partially filled", function(r) {
+                    this.assert(function() {
+                        return r.error == "Match failed: segment is partially filled";
+                    });
+                })
+            ),
+            missingLiteral: sequence(
+                CreateRouter(),
+                alternate(
+                    sequence(
+                        AddRoute({ UriPattern: "Schedule/{name}-{id}/{xpto}", Defaults: { name: null, id: null, xpto: null } }),
+                        alternate(
+                            GetRouteDataFromUri("~/Schedule/Miguel"),
+                            GetRouteDataFromUri("~/Schedule//any"),
+                            GetRouteDataFromUri("~/Schedule/Miguel/any")
                         )
                     ),
-                    writeError('log'),
-                    test("valid segments (advanced)", function(r) {
-                        this.assert(function() {
-                            return r.error == "Match failed: segment is partially filled";
-                        });
-                    })
+                    sequence(
+                        AddRoute({ UriPattern: "File/{name}-{type}", Defaults: { name: null, type: null } }),
+                        alternate(
+                            GetRouteDataFromUri("~/File/fileName")
+                        )
+                    )
+                ),
+                logProps(),
+                writeError('log'),
+                test("missing literal", function(r) {
+                    this.assert(function() {
+                        return r.error == "Match failed: literal cannot be missing '-'";
+                    });
+                })
+            ),
+            discrepancies: sequence(
+                CreateRouter(),
+                alternate(
+                    sequence(
+                        AddRoute({ UriPattern: "{x}-{y}", Defaults: { } }),
+                        GetRouteDataFromUri("~/x-y-z"),
+                        logProps(),
+                        writeError('log'),
+                        test("discrepancy #1", function(r) {
+                            this.assert(function() {
+                                return r.data.x == 'x' && r.data.y == 'y-z';
+                            });
+                        })
+                    ),
+                    sequence(
+                        AddRoute({ UriPattern: "{x}-{y}", Defaults: { x: null } }),
+                        GetRouteDataFromUri('~/---'),
+                        logProps(),
+                        writeError('log'),
+                        test("discrepancy #2", function(r) {
+                            this.assert(function() {
+                                return r.error == "Match failed: segment is partially filled";
+                            });
+                        })
+                    )
                 )
-            );
+            )
+        };
 
-        doSomeTests(allTests);
+        doSomeTests(alternate(
+                tests.routeWithDefault,
+                tests.noValueNoDefault,
+                tests.missingMiddle,
+                tests.constraintFail,
+                tests.matchBraces,
+                tests.syntaxErrors,
+                tests.emptySegment,
+                tests.unnamedPlaceholder,
+                tests.adjacentPlaceholders,
+                tests.duplicatePlaceholders,
+                tests.segmentPartiallyFilled,
+                tests.missingLiteral,
+                tests.discrepancies,
+                undefined // no test at all
+            ));
     }
     finally {
         markersEx.disableMarkers();
