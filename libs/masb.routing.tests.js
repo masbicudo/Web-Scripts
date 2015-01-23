@@ -356,6 +356,19 @@ function doRoutingTests(graphFlow, TestClass)
                         })
                     )
                 )
+            ),
+            buildURI: sequence(
+                CreateRouter(),
+                AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { id: null } }),
+                SetCurrentData({  }),
+                BuildURI({  }),
+                logProps(),
+                writeError('log'),
+                test("build URI", function(r) {
+                    this.assert(function() {
+                        return r.data.x == 'x' && r.data.y == 'y-z';
+                    });
+                })
             )
         };
 
@@ -373,6 +386,7 @@ function doRoutingTests(graphFlow, TestClass)
                 tests.segmentPartiallyFilled,
                 tests.missingLiteral,
                 tests.discrepancies,
+                tests.buildURI,
                 undefined // no test at all
             ));
     }

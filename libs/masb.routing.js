@@ -285,6 +285,18 @@
     }
     this.RouteMatch = RouteMatch;
 
+    function addParams(p2, values) {
+        for (var p1 in values) {
+            if (!this[p1]) this[p1] = {};
+            this[p1][p2] = values[p1];
+        }
+    }
+
+    function clearParams(p2) {
+        for (var p1 in this)
+            delete this[p1][p2];
+    }
+
     function Router(routes) {
         var _routes = [];
 
@@ -295,8 +307,81 @@
         this.addRoute = addRoute;
         this.getRoute = getRoute;
         this.getRouteDataFromURI = getRouteDataFromURI;
+        this.getURIFromRouteData = getURIFromRouteData;
 
+        function getURIFromRouteData(currentRouteData, targetRouteData) {
+            for (var itR = 0; itR < _routes.length; itR++) {
+                var route = _routes[itR];
+
+                var params = {};
+                var add = addParams.bind(params);
+                var clr = clearParams.bind(params);
+                add('current', currentRouteData);
+                add('target', targetRouteData);
+                add('default', route.Defaults);
+                add('constraint', route.Constraints);
+
+                // Getting values that will be used.
+                var result = {}, allowCurrent = true;
+                for (var itS = 0; itS < route.segments; itS++) {
+                    var seg = route.segments[itS];
+                    for (var itSS = 0; itSS < seg.length; itSS++) {
+                        var item = seg[itSS];
+                        if (item instanceof PlaceHolderBase) {
+                            var name = item.name;
+                            var param = params[name];
+                            var c = param.current;
+                            var t = param.target;
+                            var d = param.default;
+
+                            param.used = true;
+
+                            // c t d r
+                            // - - - x
+                            // a - - a
+                            // - a - a
+                            // - - a a
+                            // a a - a
+                            // a b - b+{clr c}
+                            // a - a a
+                            // a - b a
+                            // - a a a
+                            // - a b a
+                            // a a a a
+                            // a a b a
+                            // a b a b
+                            // b a a a
+                            // a b c b
+
+                            var nc = !c, nt = !t, nd = typeof d == 'undefined', ect = c == t, etd = t == d, edc = d == c;
+                            var r;
+                            if (nc && nt && nd) break;
+                            if (c && nt && nd) r = c;
+                            if (nc && t && nd) r = t;
+                            if (nc && nt && d) r = d;
+                            if (c && ect && nd) r = t;
+                            if (c && t && nd) { r = t; clr('current'); }
+                            if (edc && nt && d) r = c;
+                            if (c && nt && d) r = c;
+                            if (nc && t && etd) r = t;
+                            if (nc && t && d) r = t;
+                            if (edc && ect && d) r = t;
+                            if (c && ect && d) r = t;
+                            if (edc && t && d) r = t;
+                            if (c && t && etd) r = t;
+                            if (c && t && d) r = t;
+
+                            result[name] = r;
+                        }
+                    }
+                }
+                
+                // 
+            }
+        }
+        
         function getRouteDataFromURI(uri) {
+            // ASP.NET routing code (for reference): http://referencesource.microsoft.com/#System.Web/Routing/ParsedRoute.cs
             for (var itR = 0; itR < _routes.length; itR++) {
                 var route = _routes[itR];
 
