@@ -40,17 +40,12 @@ function doRoutingTests(graphFlow, TestClass)
         };
     }
 
-    function CreateRouter(o) {
-        if (typeof o == 'undefined')
-            return function CreateRouter() {
-                this.step("CreateRouter");
-                return this.router = new Router();
-            };
-        else
-            return function CreateRouter() {
-                this.step("CreateRouter: " + JSON.stringify(o));
-                return this.router = new Router(o);
-            };
+    function CreateRouter() {
+        return function CreateRouter() {
+            var globals = { area: null };
+            this.step("CreateRouter: globals = " + JSON.stringify(globals));
+            return this.router = new Router([], globals);
+        };
     }
 
     function AddRoute(o) {
@@ -64,6 +59,23 @@ function doRoutingTests(graphFlow, TestClass)
         return function GetRouteDataFromUri() {
             this.step("GetRouteDataFromUri: " + uri);
             return this.routeData = this.router.getRouteDataFromURI(uri);
+        };
+    }
+    
+    function SetCurrentData(current) {
+        return function SetCurrentData(x) {
+            this.step("SetCurrentData: " + JSON.stringify(current));
+            this.currentData = current;
+            return x;
+        };
+    }
+    
+    function BuildURI(target) {
+        return function BuildURI() {
+            this.step("BuildURI: " + JSON.stringify(target));
+            this.target = target;
+            var result = this.router.getURIFromRouteData(this.currentData, target);
+            return result;
         };
     }
     
@@ -212,9 +224,9 @@ function doRoutingTests(graphFlow, TestClass)
                 )),
                 writeError('log'),
                 logProps(),
-                test("syntax error", function(err) {
+                test("syntax error", function(d) {
                     this.assert(function() {
-                        return err instanceof Error && err.type == "SYNTAX_ERROR";
+                        return d.error instanceof Error && d.error.type == "SYNTAX_ERROR";
                     });
                 })
             ),
@@ -226,9 +238,9 @@ function doRoutingTests(graphFlow, TestClass)
                 )),
                 writeError('log'),
                 logProps(),
-                test("empty segment", function(err) {
+                test("empty segment", function(d) {
                     this.assert(function() {
-                        return err instanceof Error && err.type == "EMPTY_SEGMENT";
+                        return d.error instanceof Error && d.error.type == "EMPTY_SEGMENT";
                     });
                 })
             ),
@@ -239,9 +251,9 @@ function doRoutingTests(graphFlow, TestClass)
                     AddRoute({ UriPattern: "Schedule/{}/" })
                 )),
                 writeError('log'),
-                test("place-holder without name", function(err) {
+                test("place-holder without name", function(d) {
                     this.assert(function() {
-                        return err instanceof Error && err.type == "UNNAMED_PLACEHOLDER";
+                        return d.error instanceof Error && d.error.type == "UNNAMED_PLACEHOLDER";
                     });
                 })
             ),
@@ -253,9 +265,9 @@ function doRoutingTests(graphFlow, TestClass)
                     AddRoute({ UriPattern: "{year}{month}{day}" })
                 )),
                 writeError('log'),
-                test("no adjacent place-holders", function(err) {
+                test("no adjacent place-holders", function(d) {
                     this.assert(function() {
-                        return err instanceof Error && err.type == "ADJACENT_PLACEHOLDERS";
+                        return d.error instanceof Error && d.error.type == "ADJACENT_PLACEHOLDERS";
                     });
                 })
             ),
@@ -267,9 +279,9 @@ function doRoutingTests(graphFlow, TestClass)
                     AddRoute({ UriPattern: "Schedule/{name}-{id}/{name}/{id}" })
                 )),
                 writeError('log'),
-                test("duplicate place-holders", function(err) {
+                test("duplicate place-holders", function(d) {
                     this.assert(function() {
-                        return err instanceof Error && err.type == "DUPLICATE_PLACEHOLDER";
+                        return d.error instanceof Error && d.error.type == "DUPLICATE_PLACEHOLDER";
                     });
                 })
             ),
@@ -357,18 +369,87 @@ function doRoutingTests(graphFlow, TestClass)
                     )
                 )
             ),
-            buildURI: sequence(
+            buildUri: sequence(
                 CreateRouter(),
-                AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { id: null } }),
-                SetCurrentData({  }),
-                BuildURI({  }),
-                logProps(),
-                writeError('log'),
-                test("build URI", function(r) {
-                    this.assert(function() {
-                        return r.data.x == 'x' && r.data.y == 'y-z';
-                    });
-                })
+                AddRoute({ UriPattern: "App/{controller}/{action}/{id}", Defaults: { id: null, area: "App" } }),
+                AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index", id: null } }),
+                alternate(
+                    SetCurrentData({ area: "App", controller: "Schedule", action: "Index" }),
+                    SetCurrentData({ controller: "Schedule", action: "Index" }),
+                    SetCurrentData({ controller: "Home", action: "Index" })
+                ),
+                alternate(
+                    sequence(
+                        BuildURI({ area: "App", controller: "Schedule", action: "Details", id: "10" }),
+                        writeError('log'),
+                        test("build URI with area", function(uri) {
+                            this.assert(function() {
+                                return uri == "~/App/Schedule/Details/10";
+                            });
+                        })
+                    ),
+                    sequence(
+                        BuildURI({ area: "App", controller: "Schedule", action: "Details", id: "10", name: "Miguel Angelo", age: 30 }),
+                        writeError('log'),
+                        test("build URI with query string", function(uri) {
+                            this.log(uri);
+                            this.assert(function() {
+                                return uri == "~/App/Schedule/Details/10?name=Miguel%20Angelo&age=30"
+                                    || uri == "~/App/Schedule/Details/10?age=30&name=Miguel%20Angelo";
+                            });
+                        })
+                    ),
+                    sequence(
+                        BuildURI({ area: "", controller: "Home", action: "Details", id: "10" }),
+                        writeError('log'),
+                        test("build URI for default area", function(uri) {
+                            this.log(uri);
+                            this.assert(function() {
+                                return uri == "~/Home/Details/10";
+                            });
+                        })
+                    ),
+                    sequence(
+                        //
+                        BuildURI({ controller: "Home", action: "Details", id: "10" }),
+                        writeError('log'),
+                        test("build URI keeping area", function(uri) {
+                            this.log(uri);
+                            var c = this.currentData;
+                            if (c.area == "App")
+                                this.assert(function() {
+                                    return uri == "~/App/Home/Details/10";
+                                });
+                            else
+                                this.assert(function() {
+                                    return uri == "~/Home/Details/10";
+                                });
+                        })
+                    ),
+                    sequence(
+                        null, // counter the catchCombinator bug... it shouldn't be a combinator
+                        catchError(alternate(
+                            BuildURI({ action: "Details", id: "10" })
+                        )),
+                        writeError('log'),
+                        test("build URI keeping area, controller", function(d) {
+                            this.log(JSON.stringify(d));
+                            var c = this.currentData;
+                            if (c.controller == "Home")
+                                this.assert(function() {
+                                    return d.value == "~/Home/Details/10";
+                                });
+                            else if (c.area == "App" && c.controller == "Schedule")
+                                this.assert(function() {
+                                    return d.value == "~/App/Schedule/Details/10";
+                                });
+                            else if (c.controller == "Schedule")
+                                this.assert(function() {
+                                    return d.value == "~/Schedule/Details/10";
+                                });
+                        })
+                    )
+                )
             )
         };
 
@@ -386,7 +467,11 @@ function doRoutingTests(graphFlow, TestClass)
                 tests.segmentPartiallyFilled,
                 tests.missingLiteral,
                 tests.discrepancies,
-                tests.buildURI,
+                undefined // no test at all
+            ));
+
+        doSomeTests(alternate(
+                tests.buildUri,
                 undefined // no test at all
             ));
     }

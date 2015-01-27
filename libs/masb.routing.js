@@ -292,12 +292,146 @@
         }
     }
 
-    function clearParams(p2) {
-        for (var p1 in this)
-            delete this[p1][p2];
+    function ifUndef(f,t) {
+        return typeof f == 'undefined' ? t : f;
+    }
+    
+    function isNullOrEmpty(x) {
+        return x===null||x==="";
+    }
+    
+    function bindUriValues(route, currentRouteData, targetRouteData, globalValues) {
+        var params = {};
+        var add = addParams.bind(params);
+        add('current', currentRouteData);
+        add('target', targetRouteData);
+        add('default', route.Defaults);
+        add('constraint', route.Constraints);
+        add('global', globalValues);
+
+        // Getting values that will be used.
+        var result = { uriValues: {}, dataTokens: {} }, allowCurrent = true;
+        var fnc = false;
+        for (var itS = 0; itS < route.segments.length; itS++) {
+            var seg = route.segments[itS];
+            for (var itSS = 0; itSS < seg.length; itSS++) {
+                var item = seg[itSS];
+                if (item instanceof PlaceHolderBase) {
+                    var name = item.name;
+                    var param = params[name];
+                    var c = ifUndef(param.current, g);
+                    var t = param.target;
+                    var d = ifUndef(param.default, g);
+
+                    //  c   t   d | r   action
+                    // -----------+------------
+                    //  -   -   - |     stop
+                    //  a   -   - | a
+                    //  -   a   - | a
+                    //  -   -   a | a
+                    //  a   a   - | a
+                    //  a   b   - | b   clear c
+                    //  a   -   a | a
+                    //  a   -   b | a
+                    //  -   a   a | a
+                    //  -   a   b | a
+                    //  a   a   a | a
+                    //  a   a   b | a
+                    //  a   b   a | b
+                    //  b   a   a | a
+                    //  a   b   c | b
+
+                    var nc = !c || fnc,
+                        nt = !t,
+                        nd = typeof d == 'undefined',
+                        ect = c == t || nc && nt,
+                        etd = t == d || nt && nd,
+                        edc = d == c || nd && nc;
+                    var r0;
+                         if (nc  && nt  && nd )          return null;
+                    else if (!nc && nt  && nd )   r0 = c;
+                    else if (nc  && !nt && nd )   r0 = t;
+                    else if (nc  && nt  && !nd)   r0 = d;
+                    else if (!nc && ect && nd )   r0 = t;
+                    else if (!nc && !nt && nd ) { r0 = t; fnc = true; }
+                    else if (edc && nt  && !nd)   r0 = c;
+                    else if (!nc && nt  && !nd)   r0 = c;
+                    else if (nc  && !nt && etd)   r0 = t;
+                    else if (nc  && !nt && !nd)   r0 = t;
+                    else if (edc && ect && !nd)   r0 = t;
+                    else if (!nc && ect && !nd)   r0 = t;
+                    else if (edc && !nt && !nd)   r0 = t;
+                    else if (!nc && !nt && etd)   r0 = t;
+                    else if (!nc && !nt && !nd)   r0 = t;
+                    
+                    param.used = true;
+                    result.uriValues[name] = r0;
+                }
+            }
+        }
+
+        // checking remaining parameters
+        for (var name in params) {
+            var param = params[name];
+            if (!param.used) {
+                var g = param.global;
+                var c = ifUndef(param.current, g);
+                var t = param.target;
+                var d = ifUndef(param.default, g);
+
+                //  c   t   d | r   action
+                // -----------+------------
+                //  -   -   - | -
+                //  a   -   - | -
+                //  -   a   - | a
+                //  -   -   a |     stop
+                //  a   a   - | a
+                //  a   b   - | b
+                //  a   -   a | -   data-token
+                //  a   -   b |     stop
+                //  -   a   a | -   data-token
+                //  -   a   b |     stop
+                //  a   a   a | -   data-token
+                //  a   a   b |     stop
+                //  a   b   a |     stop
+                //  b   a   a | -   data-token
+                //  a   b   c |     stop
+
+                var nc = typeof c == 'undefined',
+                    nt = typeof t == 'undefined',
+                    nd = typeof d == 'undefined',
+                    ect = c == t || nc && nt || isNullOrEmpty(c) && isNullOrEmpty(t),
+                    etd = t == d || nt && nd || isNullOrEmpty(t) && isNullOrEmpty(d),
+                    edc = d == c || nd && nc || isNullOrEmpty(d) && isNullOrEmpty(c);
+                var r1;
+                     if (nc  && nt  && nd ) delete r1;
+                else if (!nc && nt  && nd ) delete r1;
+                else if (nc  && !nt && nd ) r1 = t;
+                else if (nc  && nt  && !nd) return null;
+                else if (!nc && ect && nd ) r1 = t;
+                else if (!nc && !nt && nd ) r1 = t;
+                else if (edc && nt  && !nd) { delete r1; result.dataTokens[name] = d; }
+                else if (!nc && nt  && !nd) return null;
+                else if (nc  && !nt && etd) { delete r1; result.dataTokens[name] = d; }
+                else if (nc  && !nt && !nd) return null;
+                else if (edc && ect && !nd) { delete r1; result.dataTokens[name] = d; }
+                else if (!nc && ect && !nd) return null;
+                else if (edc && !nt && !nd) return null;
+                else if (!nc && !nt && etd) { delete r1; result.dataTokens[name] = d; }
+                else if (!nc && !nt && !nd) return null;
+
+                if (typeof r1 != 'undefined')
+                {
+                    param.used = true;
+                    result.uriValues[name] = r1;
+                }
+            }
+        }
+
+        return result;
     }
 
-    function Router(routes) {
+    function Router(routes, globalValues) {
         var _routes = [];
 
         if (routes instanceof Array)
@@ -308,76 +442,47 @@
         this.getRoute = getRoute;
         this.getRouteDataFromURI = getRouteDataFromURI;
         this.getURIFromRouteData = getURIFromRouteData;
+        this.globalValues = globalValues || {};
 
         function getURIFromRouteData(currentRouteData, targetRouteData) {
             for (var itR = 0; itR < _routes.length; itR++) {
                 var route = _routes[itR];
 
-                var params = {};
-                var add = addParams.bind(params);
-                var clr = clearParams.bind(params);
-                add('current', currentRouteData);
-                add('target', targetRouteData);
-                add('default', route.Defaults);
-                add('constraint', route.Constraints);
+                // getting data to use in the URI
+                var data = bindUriValues(route, currentRouteData, targetRouteData, this.globalValues);
 
-                // Getting values that will be used.
-                var result = {}, allowCurrent = true;
-                for (var itS = 0; itS < route.segments; itS++) {
-                    var seg = route.segments[itS];
-                    for (var itSS = 0; itSS < seg.length; itSS++) {
-                        var item = seg[itSS];
-                        if (item instanceof PlaceHolderBase) {
-                            var name = item.name;
-                            var param = params[name];
-                            var c = param.current;
-                            var t = param.target;
-                            var d = param.default;
-
-                            param.used = true;
-
-                            // c t d r
-                            // - - - x
-                            // a - - a
-                            // - a - a
-                            // - - a a
-                            // a a - a
-                            // a b - b+{clr c}
-                            // a - a a
-                            // a - b a
-                            // - a a a
-                            // - a b a
-                            // a a a a
-                            // a a b a
-                            // a b a b
-                            // b a a a
-                            // a b c b
-
-                            var nc = !c, nt = !t, nd = typeof d == 'undefined', ect = c == t, etd = t == d, edc = d == c;
-                            var r;
-                            if (nc && nt && nd) break;
-                            if (c && nt && nd) r = c;
-                            if (nc && t && nd) r = t;
-                            if (nc && nt && d) r = d;
-                            if (c && ect && nd) r = t;
-                            if (c && t && nd) { r = t; clr('current'); }
-                            if (edc && nt && d) r = c;
-                            if (c && nt && d) r = c;
-                            if (nc && t && etd) r = t;
-                            if (nc && t && d) r = t;
-                            if (edc && ect && d) r = t;
-                            if (c && ect && d) r = t;
-                            if (edc && t && d) r = t;
-                            if (c && t && etd) r = t;
-                            if (c && t && d) r = t;
-
-                            result[name] = r;
+                // building URI with the data
+                if (data) {
+                    var uri = "~";
+                    for (var itS = 0; itS < route.segments.length; itS++) {
+                        var seg = route.segments[itS];
+                        uri += uri[uri.length-1] != "/" ? "/" : "";
+                        for (var itSS = 0; itSS < seg.length; itSS++) {
+                            var item = seg[itSS];
+                            if (item instanceof PlaceHolderBase) {
+                                var val = data.uriValues[item.name];
+                                if (val) uri += encodeURIComponent(val);
+                                delete data.uriValues[item.name];
+                            }
+                            else if (item instanceof Literal) {
+                                uri += encodeURIComponent(item.value);
+                            }
                         }
                     }
+                    
+                    var sep = '?';
+                    for (var name in data.uriValues) {
+                        var value = data.uriValues[name];
+                        delete data.uriValues[name];
+                        uri += uri[uri.length-1] != sep ? sep : "";
+                        sep = '&';
+                        uri += encodeURIComponent(name) + '=' + encodeURIComponent(value);
+                    }
+                    return uri;
                 }
-                
-                // 
             }
+
+            throw new Error("No matching route to build the URI");
         }
         
         function getRouteDataFromURI(uri) {
