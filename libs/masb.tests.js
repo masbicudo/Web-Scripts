@@ -181,7 +181,9 @@ function createTestClass(graphFlow) {
             })
     };
 
-    Tests.funcToString = function funcToString(fn) {
+    Tests.funcToString = funcToString;
+
+    function funcToString(fn) {
         var fnStr = fn.toString();
         var spc = /[\r\n]([\t ]+)\}$/g.exec(fnStr)[1];
         fnStr = fnStr.replace(new RegExp("^"+spc, "gm"), '');
@@ -190,8 +192,8 @@ function createTestClass(graphFlow) {
     }
 
     Tests.lambdaStr = function lambdaStr(fn) {
-        var rgx = /^function(?:\s+\w*\s*)?\([^\)]*\)\s+\{(?:\s+|debugger;|\/\/[^\r\n]*|\/\*(?:(?!\*\/).)+\*\/)+return\s+(.*);\s+\}$/g;
-        var m = rgx.exec(fn.toString());
+        var rgx = /^function(?:\s+\w*\s*)?\([^\)]*\)\s+\{(?:\s+|debugger;|\/\/[^\r\n]*|\/\*(?:(?!\*\/).)+\*\/)+return\s+([^;]*);[\s;]+\}$/g;
+        var m = rgx.exec(Tests.funcToString(fn));
         return m[1];
     }
 
