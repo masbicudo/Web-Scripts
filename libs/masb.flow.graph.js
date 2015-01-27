@@ -1,4 +1,4 @@
-// Graph Flow v1.6.0    2015-01-19
+// Graph Flow v1.6.0    2015-01-27
 // Author: Miguel Angelo
 // Licence:
 //      Contact me to get a licence
@@ -116,21 +116,32 @@ function createGraphFlow() {
         return GoF;
     }
     valueCombinator.procArgs = identity;
+
+    // BUG: catchCombinator should not be a combinator...
+    // When there is no functions before the function marked with a combinator
+    // it won't be applied. It is only use to combine two consecutive functions.
+    // A try/catch should be applied even when there is only one function.
     function catchCombinator(g, argsFn, fs) {
         function GoF_catch() {
             var args = argsFn.apply(this, arguments);
-            var err = null;
-            try { g.apply(this, args); }
-            catch (e) { err = e; }
-            return err;
+            var err, val;
+            
+            try {
+                val = g.apply(this, args);
+            }
+            catch (e) {
+                err = e;
+            }
+            
+            return { error: err, value: val };
         };
-        if (g.hasOwnProperty('inherit')) {
+        if (g.hasOwnProperty('inherit'))
             GoF_catch.inherit = g.inherit;
-            GoF_catch.combinator = valueCombinator;
-        }
+        GoF_catch.combinator = valueCombinator;
         return GoF_catch;
     }
     catchCombinator.procArgs = identity;
+
     function funcCombinator(g, argsFn, fs) {
         // this is a special combinator that passes
         // `fs` functions to the `g` function,
