@@ -66,8 +66,8 @@ function deepClone(o, opts) {
 }
 
 
-// quero ler dados do átomo como objetos normais do javascript
-// para escrever valores no átomo (em modo de edição) usam-se cursores:
+// quero ler dados do Ã¡tomo como objetos normais do javascript
+// para escrever valores no Ã¡tomo (em modo de ediÃ§Ã£o) usam-se cursores:
 //      atom.edit(function (a) {
 //          var personName = 'Miguel Angelo';
 //          var personCursor = a.prop('people', personName);
