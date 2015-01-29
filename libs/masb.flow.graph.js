@@ -89,7 +89,8 @@ function createGraphFlow() {
             .reduce(concat, [])
             .map(function(fs){
                 return fs === null ? NoOp() : fs;
-            });
+            })
+            .filter(function(fs){return typeof fs != 'undefined'});
     }
     function flattenArgs(dstArgs, srcArgs) {
         return srcArgs
