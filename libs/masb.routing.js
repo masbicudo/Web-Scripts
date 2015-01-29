@@ -127,6 +127,21 @@
         return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
     }
 
+    function matchConstraint(constraint, value) {
+        // constraint fail
+        value = value==null ? "" : ""+value;
+        if (typeof constraint == 'string') {
+            var regex = new RegExp(constraint, 'g');
+            if (!regex.test(value))
+                return false;
+        }
+        else if (typeof constraint == 'function') {
+            if (!constraint(value))
+                return false;
+        }
+        return true;
+    }
+
     function validateSegmentValues(segments, route, segValues) {
         var segIdx = 0,
             glbFilled = 0,
@@ -148,16 +163,8 @@
                         constraint = route.Constraints && route.Constraints[name],
                         def = route.Defaults && route.Defaults[name];
 
-                    // constraint fail
-                    if (typeof constraint == 'string') {
-                        var regex = new RegExp(constraint, 'g');
-                        if (!regex.test(value))
-                            return "Match failed: constraint of '{" + name + "}' did not match";
-                    }
-                    else if (typeof constraint == 'function') {
-                        if (!constraint(value))
-                            return "Match failed: constraint of '{" + name + "}' did not match";
-                    }
+                    if (!matchConstraint(constraint, value))
+                        return "Match failed: constraint of '{" + name + "}' did not match";
 
                     // no value and no default
                     if (!value && typeof def == 'undefined')
@@ -366,6 +373,7 @@
                     
                     param.used = true;
                     result.uriValues[name] = r0;
+                    r0 = undefined;
                 }
             }
         }
@@ -404,31 +412,79 @@
                     etd = t == d || nt && nd || isNullOrEmpty(t) && isNullOrEmpty(d),
                     edc = d == c || nd && nc || isNullOrEmpty(d) && isNullOrEmpty(c);
                 var r1;
-                     if (nc  && nt  && nd ) delete r1;
-                else if (!nc && nt  && nd ) delete r1;
+                     if (nc  && nt  && nd ) r1 = undefined;
+                else if (!nc && nt  && nd ) r1 = undefined;
                 else if (nc  && !nt && nd ) r1 = t;
                 else if (nc  && nt  && !nd) return null;
                 else if (!nc && ect && nd ) r1 = t;
                 else if (!nc && !nt && nd ) r1 = t;
-                else if (edc && nt  && !nd) { delete r1; result.dataTokens[name] = d; }
+                else if (edc && nt  && !nd) { r1 = undefined; result.dataTokens[name] = d; }
                 else if (!nc && nt  && !nd) return null;
-                else if (nc  && !nt && etd) { delete r1; result.dataTokens[name] = d; }
+                else if (nc  && !nt && etd) { r1 = undefined; result.dataTokens[name] = d; }
                 else if (nc  && !nt && !nd) return null;
-                else if (edc && ect && !nd) { delete r1; result.dataTokens[name] = d; }
+                else if (edc && ect && !nd) { r1 = undefined; result.dataTokens[name] = d; }
                 else if (!nc && ect && !nd) return null;
                 else if (edc && !nt && !nd) return null;
-                else if (!nc && !nt && etd) { delete r1; result.dataTokens[name] = d; }
+                else if (!nc && !nt && etd) { r1 = undefined; result.dataTokens[name] = d; }
                 else if (!nc && !nt && !nd) return null;
 
                 if (typeof r1 != 'undefined')
                 {
                     param.used = true;
                     result.uriValues[name] = r1;
+                    r1 = undefined;
                 }
             }
         }
 
         return result;
+    }
+
+    function buildUri(route, data) {
+        var uri = "~";
+        var tempUri = uri;
+        for (var itS = 0; itS < route.segments.length; itS++) {
+            var seg = route.segments[itS];
+            tempUri += tempUri[tempUri.length-1] != "/" ? "/" : "";
+            var segmentRequired = false;
+            for (var itSS = 0; itSS < seg.length; itSS++) {
+                var item = seg[itSS];
+                if (item instanceof PlaceHolderBase) {
+                    var name = item.name,
+                        constraint = route.Constraints && route.Constraints[name],
+                        def = route.Defaults && route.Defaults[name];
+                    var value = data.uriValues[name];
+
+                    if (typeof def != 'undefined')
+                        if (!(def == value || (def==null||def=="")&&(value==null||value=="")))
+                            segmentRequired = true;
+
+                    if (!matchConstraint(constraint, value))
+                        return null;
+
+                    if (value) tempUri += encodeURIComponent(value);
+                    delete data.uriValues[item.name];
+                }
+                else if (item instanceof Literal) {
+                    segmentRequired = true;
+                    tempUri += encodeURIComponent(item.value);
+                }
+            }
+
+            if (segmentRequired)
+                uri = tempUri;
+        }
+
+        var sep = '?';
+        for (var name in data.uriValues) {
+            var value = data.uriValues[name];
+            delete data.uriValues[name];
+            uri += uri[uri.length-1] != sep ? sep : "";
+            sep = '&';
+            uri += encodeURIComponent(name) + '=' + encodeURIComponent(value);
+        }
+
+        return uri;
     }
 
     function Router(routes, globalValues) {
@@ -452,34 +508,10 @@
                 var data = bindUriValues(route, currentRouteData, targetRouteData, this.globalValues);
 
                 // building URI with the data
-                if (data) {
-                    var uri = "~";
-                    for (var itS = 0; itS < route.segments.length; itS++) {
-                        var seg = route.segments[itS];
-                        uri += uri[uri.length-1] != "/" ? "/" : "";
-                        for (var itSS = 0; itSS < seg.length; itSS++) {
-                            var item = seg[itSS];
-                            if (item instanceof PlaceHolderBase) {
-                                var val = data.uriValues[item.name];
-                                if (val) uri += encodeURIComponent(val);
-                                delete data.uriValues[item.name];
-                            }
-                            else if (item instanceof Literal) {
-                                uri += encodeURIComponent(item.value);
-                            }
-                        }
-                    }
-                    
-                    var sep = '?';
-                    for (var name in data.uriValues) {
-                        var value = data.uriValues[name];
-                        delete data.uriValues[name];
-                        uri += uri[uri.length-1] != sep ? sep : "";
-                        sep = '&';
-                        uri += encodeURIComponent(name) + '=' + encodeURIComponent(value);
-                    }
-                    return uri;
-                }
+                var uri = null;
+                if (data) uri = buildUri(route, data);
+
+                if (uri) return uri;
             }
 
             throw new Error("No matching route to build the URI");

@@ -369,7 +369,7 @@ function doRoutingTests(graphFlow, TestClass)
                     )
                 )
             ),
-            buildUri: sequence(
+            buildUriStart1: sequence(
                 CreateRouter(),
                 AddRoute({ UriPattern: "App/{controller}/{action}/{id}", Defaults: { id: null, area: "App" } }),
                 AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index", id: null } }),
@@ -377,79 +377,137 @@ function doRoutingTests(graphFlow, TestClass)
                     SetCurrentData({ area: "App", controller: "Schedule", action: "Index" }),
                     SetCurrentData({ controller: "Schedule", action: "Index" }),
                     SetCurrentData({ controller: "Home", action: "Index" })
-                ),
-                alternate(
-                    sequence(
-                        BuildURI({ area: "App", controller: "Schedule", action: "Details", id: "10" }),
-                        writeError('log'),
-                        test("build URI with area", function(uri) {
-                            this.assert(function() {
-                                return uri == "~/App/Schedule/Details/10";
-                            });
-                        })
-                    ),
-                    sequence(
-                        BuildURI({ area: "App", controller: "Schedule", action: "Details", id: "10", name: "Miguel Angelo", age: 30 }),
-                        writeError('log'),
-                        test("build URI with query string", function(uri) {
-                            this.log(uri);
-                            this.assert(function() {
-                                return uri == "~/App/Schedule/Details/10?name=Miguel%20Angelo&age=30"
-                                    || uri == "~/App/Schedule/Details/10?age=30&name=Miguel%20Angelo";
-                            });
-                        })
-                    ),
-                    sequence(
-                        BuildURI({ area: "", controller: "Home", action: "Details", id: "10" }),
-                        writeError('log'),
-                        test("build URI for default area", function(uri) {
-                            this.log(uri);
-                            this.assert(function() {
-                                return uri == "~/Home/Details/10";
-                            });
-                        })
-                    ),
-                    sequence(
-                        //
-                        BuildURI({ controller: "Home", action: "Details", id: "10" }),
-                        writeError('log'),
-                        test("build URI keeping area", function(uri) {
-                            this.log(uri);
-                            var c = this.currentData;
-                            if (c.area == "App")
-                                this.assert(function() {
-                                    return uri == "~/App/Home/Details/10";
-                                });
-                            else
-                                this.assert(function() {
-                                    return uri == "~/Home/Details/10";
-                                });
-                        })
-                    ),
-                    sequence(
-                        null, // counter the catchCombinator bug... it shouldn't be a combinator
-                        catchError(alternate(
-                            BuildURI({ action: "Details", id: "10" })
-                        )),
-                        writeError('log'),
-                        test("build URI keeping area, controller", function(d) {
-                            this.log(JSON.stringify(d));
-                            var c = this.currentData;
-                            if (c.controller == "Home")
-                                this.assert(function() {
-                                    return d.value == "~/Home/Details/10";
-                                });
-                            else if (c.area == "App" && c.controller == "Schedule")
-                                this.assert(function() {
-                                    return d.value == "~/App/Schedule/Details/10";
-                                });
-                            else if (c.controller == "Schedule")
-                                this.assert(function() {
-                                    return d.value == "~/Schedule/Details/10";
-                                });
-                        })
-                    )
                 )
+            ),
+            // buildUriStart1
+            buildUriWithArea: sequence(
+                BuildURI({ area: "App", controller: "Schedule", action: "Details", id: "10" }),
+                writeError('log'),
+                test("build URI with area", function(uri) {
+                    this.assert(function() {
+                        return uri == "~/App/Schedule/Details/10";
+                    });
+                })
+            ),
+            // buildUriStart1
+            buildUriWithQuery: sequence(
+                BuildURI({ area: "App", controller: "Schedule", action: "Details", id: "10", name: "Miguel Angelo", age: 30 }),
+                writeError('log'),
+                test("build URI with query string", function(uri) {
+                    this.log(uri);
+                    this.assert(function() {
+                        return uri == "~/App/Schedule/Details/10?name=Miguel%20Angelo&age=30"
+                            || uri == "~/App/Schedule/Details/10?age=30&name=Miguel%20Angelo";
+                    });
+                })
+            ),
+            // buildUriStart1
+            buildUriForDefArea: sequence(
+                BuildURI({ area: "", controller: "Home", action: "Details", id: "10" }),
+                writeError('log'),
+                test("build URI for default area", function(uri) {
+                    this.log(uri);
+                    this.assert(function() {
+                        return uri == "~/Home/Details/10";
+                    });
+                })
+            ),
+            // buildUriStart1
+            buildUriWithDefAtEnd: sequence(
+                BuildURI({ area: "", controller: "Home", action: "Index" }),
+                writeError('log'),
+                test("build URI with default values at end", function(uri) {
+                    this.log(uri);
+                    this.assert(function() {
+                        return uri == "~";
+                    });
+                })
+            ),
+            // buildUriStart1
+            buildUriKeepingArea: sequence(
+                //
+                BuildURI({ controller: "Home", action: "Details", id: "10" }),
+                writeError('log'),
+                test("build URI keeping area", function(uri) {
+                    this.log(uri);
+                    var c = this.currentData;
+                    if (c.area == "App")
+                        this.assert(function() {
+                            return uri == "~/App/Home/Details/10";
+                        });
+                    else
+                        this.assert(function() {
+                            return uri == "~/Home/Details/10";
+                        });
+                })
+            ),
+            // buildUriStart1
+            buildUriKeepingAreaCtrl: sequence(
+                null, // counter the catchCombinator bug... it shouldn't be a combinator
+                catchError(alternate(
+                    BuildURI({ action: "Details", id: "10" })
+                )),
+                writeError('log'),
+                test("build URI keeping area, controller", function(d) {
+                    this.log(JSON.stringify(d));
+                    var c = this.currentData;
+                    if (c.controller == "Home")
+                        this.assert(function() {
+                            return d.value == "~/Home/Details/10";
+                        });
+                    else if (c.area == "App" && c.controller == "Schedule")
+                        this.assert(function() {
+                            return d.value == "~/App/Schedule/Details/10";
+                        });
+                    else if (c.controller == "Schedule")
+                        this.assert(function() {
+                            return d.value == "~/Schedule/Details/10";
+                        });
+                })
+            ),
+            buildUriWithConstraint: sequence(
+                CreateRouter(),
+                AddRoute({ UriPattern: "{controller}/{action}/{id}",
+                    Defaults: { controller: "Home", action: "Index", id: null },
+                    Constraints: { controller: "^Home$", id: "^\\d*$" }}),
+                SetCurrentData({ controller: "Home", action: "Index" }),
+                catchError(alternate(
+                    BuildURI({ mrk: "A", controller: "Home", action: "Details", id: "10" }),
+                    BuildURI({ mrk: "B", controller: "Home", action: "Index" }),
+                    BuildURI({ mrk: "C", action: "Details", id: "10" }),
+                    BuildURI({ mrk: "D", action: "Index" }),
+                    BuildURI({ mrk: "E", controller: "Invalid", action: "Index" }),
+                    BuildURI({ mrk: "F", controller: "Home", action: "Details", id: "xpto" }),
+                    undefined
+                )),
+                logProps(),
+                test("build URI with constraint", function(d) {
+                    var t = this.target;
+                    if (t.mrk == "A")
+                        this.assert(function() {
+                            return d.value == "~/Home/Details/10?mrk=A";
+                        });
+                    if (t.mrk == "B")
+                        this.assert(function() {
+                            return d.value == "~?mrk=B";
+                        });
+                    if (t.mrk == "C")
+                        this.assert(function() {
+                            return d.value == "~/Home/Details/10?mrk=C";
+                        });
+                    if (t.mrk == "D")
+                        this.assert(function() {
+                            return d.value == "~?mrk=D";
+                        });
+                    if (t.mrk == "E")
+                        this.assert(function() {
+                            return d.error && d.error.message == "No matching route to build the URI";
+                        });
+                    if (t.mrk == "F")
+                        this.assert(function() {
+                            return d.error && d.error.message == "No matching route to build the URI";
+                        });
+                })
             )
         };
 
@@ -471,7 +529,20 @@ function doRoutingTests(graphFlow, TestClass)
             ));
 
         doSomeTests(alternate(
-                tests.buildUri,
+                sequence(
+                    tests.buildUriStart1,
+                    alternate(
+                        tests.buildUriWithArea,
+                        tests.buildUriWithQuery,
+                        tests.buildUriForDefArea,
+                        tests.buildUriWithDefAtEnd,
+                        tests.buildUriKeepingArea,
+                        tests.buildUriKeepingAreaCtrl,
+                        undefined // no test at all
+                    ),
+                    undefined // no test at all
+                ),
+                tests.buildUriWithConstraint,
                 undefined // no test at all
             ));
     }
