@@ -5,9 +5,9 @@
     <title>Pager Component Experiment</title>
     <link href="pager.css" type="text/css" rel="stylesheet" />
     <!-- React.js -->
-    <script src="../packages/react-0.12.1/build/react.js"></script>
-    <script src="../packages/react-0.12.1/build/JSXTransformer.js"></script>
-    <script src="gearz.mixin.js"></script>
+    <script src="../../packages/react-0.12.1/build/react.js"></script>
+    <script src="../../packages/react-0.12.1/build/JSXTransformer.js"></script>
+    <script src="../gearz.mixin.js"></script>
     <script src="pager.jsx" type="text/jsx"></script>
 </head>
 <body>
@@ -36,7 +36,7 @@
                 e.preventDefault();
                 data[e.key] = e.value;
                 render();
-            }.bind(this);
+            };
         }
         function render1() {
             React.render(
@@ -63,8 +63,7 @@
                 <Pager
                     page={1}
                     count={101}
-                    pageSize={10}
-                    render={render3} />,
+                    pageSize={10} />,
                 document.getElementById("output3")
             );
         }
