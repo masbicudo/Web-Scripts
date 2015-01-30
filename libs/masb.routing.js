@@ -1,4 +1,4 @@
-// Masb Routing    v0.1.0
+// Masb Routing    v0.2.0
 //
 //  This is responsible for routing, that is,
 //  extracting information from an URI so that
@@ -167,7 +167,7 @@
                         return "Match failed: constraint of '{" + name + "}' did not match";
 
                     // no value and no default
-                    if (!value && typeof def == 'undefined')
+                    if (!value && isUndefined(def))
                         return "Match failed: no value and no default for '{" + name + "}'";
                 }
                 else if (item instanceof Literal) {
@@ -255,7 +255,7 @@
 
         function PlaceHolder(name) {
             this.name = name;
-            this.isOptional = !!route.Defaults && route.Defaults.hasOwnProperty(name) && typeof route.Defaults[name] !== 'undefined';
+            this.isOptional = !!route.Defaults && route.Defaults.hasOwnProperty(name) && !isUndefined(route.Defaults[name]);
             if (this.isOptional)
                 this.defaultValue = route.Defaults[name];
             this.isConstrained = constraints.hasOwnProperty(name);
@@ -267,8 +267,8 @@
         }
         PlaceHolder.prototype = Object.create(PlaceHolderBase.prototype);
 
-        var segments = getSegments(route.UriPattern, Literal, PlaceHolder);
-        var segmentsMatcher = getSegmentsMatcher(segments);
+        var segments = getSegments.call(this, route.UriPattern, Literal, PlaceHolder);
+        var segmentsMatcher = getSegmentsMatcher.call(this, segments);
 
         // properties with extracted information from the route object
         this.segments = segments;
@@ -300,13 +300,32 @@
     }
 
     function ifUndef(f,t) {
-        return typeof f == 'undefined' ? t : f;
+        return isUndefined(f) ? t : f;
     }
     
     function isNullOrEmpty(x) {
         return x===null||x==="";
     }
-    
+
+    function isUndefined(x) {
+        return typeof x == 'undefined';
+    }
+
+    function ensureStringLimits(start, end, str) {
+        str = ""+str;
+        end = ""+end;
+
+        str = str == "" ? start
+            : str[0] != start ? (start+str)
+            : str;
+
+        str = str == "" ? end
+            : str[str.length-1] != end ? (str+end)
+            : str;
+
+        return str;
+    }
+
     function bindUriValues(route, currentRouteData, targetRouteData, globalValues) {
         var params = {};
         var add = addParams.bind(params);
@@ -350,7 +369,7 @@
 
                     var nc = !c || fnc,
                         nt = !t,
-                        nd = typeof d == 'undefined',
+                        nd = isUndefined(d),
                         ect = c == t || nc && nt,
                         etd = t == d || nt && nd,
                         edc = d == c || nd && nc;
@@ -405,9 +424,9 @@
                 //  b   a   a | -   data-token
                 //  a   b   c |     stop
 
-                var nc = typeof c == 'undefined',
-                    nt = typeof t == 'undefined',
-                    nd = typeof d == 'undefined',
+                var nc = isUndefined(c),
+                    nt = isUndefined(t),
+                    nd = isUndefined(d),
                     ect = c == t || nc && nt || isNullOrEmpty(c) && isNullOrEmpty(t),
                     etd = t == d || nt && nd || isNullOrEmpty(t) && isNullOrEmpty(d),
                     edc = d == c || nd && nc || isNullOrEmpty(d) && isNullOrEmpty(c);
@@ -440,8 +459,8 @@
         return result;
     }
 
-    function buildUri(route, data) {
-        var uri = "~";
+    function buildUri(route, data, basePath) {
+        var uri = basePath;
         var tempUri = uri;
         for (var itS = 0; itS < route.segments.length; itS++) {
             var seg = route.segments[itS];
@@ -487,29 +506,54 @@
         return uri;
     }
 
-    function Router(routes, globalValues) {
+    function Router(opts) {
+        if (!(this instanceof Router))
+            throw new Error("Must call 'Router' with 'new' operator.");
+        var routes = opts.routes,
+            globalValues = opts.globals,
+            basePath = opts.basePath;
         var _routes = [];
 
         if (routes instanceof Array)
             for (var itR = 0; itR < routes.length; itR++)
                 addRoute(routes[itR]);
 
-        this.addRoute = addRoute;
-        this.getRoute = getRoute;
-        this.getRouteDataFromURI = getRouteDataFromURI;
-        this.getURIFromRouteData = getURIFromRouteData;
+        this.addRoute = addRoute.bind(this);
+        this.getRoute = getRoute.bind(this);
+        this.getRouteDataFromURI = getRouteDataFromURI.bind(this);
+        this.getURIFromRouteData = getURIFromRouteData.bind(this);
+        this.toVirtualPath = toVirtualPath.bind(this);
+        this.toAppPath = toAppPath.bind(this);
         this.globalValues = globalValues || {};
+        this.basePath =
+            isUndefined(basePath) ? "~/" :
+            isNullOrEmpty(basePath) ? "/" :
+            ensureStringLimits('/', '/', basePath);
 
-        function getURIFromRouteData(currentRouteData, targetRouteData) {
+        function toVirtualPath(path) {
+            path=""+path;
+            if (path.indexOf(this.basePath) == 0)
+                return path.substr(this.basePath.length);
+            return null;
+        }
+
+        function toAppPath(virtualPath) {
+            virtualPath=""+virtualPath;
+            if (virtualPath.indexOf("~/") == 0)
+                return this.basePath + virtualPath.substr(2);
+            return null;
+        }
+
+        function getURIFromRouteData(currentRouteData, targetRouteData, opts) {
             for (var itR = 0; itR < _routes.length; itR++) {
                 var route = _routes[itR];
 
                 // getting data to use in the URI
-                var data = bindUriValues(route, currentRouteData, targetRouteData, this.globalValues);
+                var data = bindUriValues.call(this, route, currentRouteData, targetRouteData, this.globalValues);
 
                 // building URI with the data
                 var uri = null;
-                if (data) uri = buildUri(route, data);
+                if (data) uri = buildUri.call(this, route, data, opts.virtual ? "~/" : this.basePath);
 
                 if (uri) return uri;
             }
@@ -522,6 +566,7 @@
             for (var itR = 0; itR < _routes.length; itR++) {
                 var route = _routes[itR];
 
+                uri = uri.replace(new RegExp("^"+escapeRegExp(this.basePath), "g"), "~/");
                 // Trying to match the route information with the given URI.
                 // Convert the URI pattern to a RegExp that can extract information from a real URI.
                 var segments = route.segments;

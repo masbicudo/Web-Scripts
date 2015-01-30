@@ -44,7 +44,7 @@ function doRoutingTests(graphFlow, TestClass)
         return function CreateRouter() {
             var globals = { area: null };
             this.step("CreateRouter: globals = " + JSON.stringify(globals));
-            return this.router = new Router([], globals);
+            return this.router = new Router({routes: [], globals: globals, basePath: 'MyApp'});
         };
     }
 
@@ -69,12 +69,21 @@ function doRoutingTests(graphFlow, TestClass)
             return x;
         };
     }
-    
+
     function BuildURI(target) {
         return function BuildURI() {
             this.step("BuildURI: " + JSON.stringify(target));
             this.target = target;
-            var result = this.router.getURIFromRouteData(this.currentData, target);
+            var result = this.router.getURIFromRouteData(this.currentData, target, {virtual: true});
+            return result;
+        };
+    }
+
+    function BuildApplicationURI(target) {
+        return function BuildURI() {
+            this.step("BuildApplicationURI: " + JSON.stringify(target));
+            this.target = target;
+            var result = this.router.getURIFromRouteData(this.currentData, target, {virtual: false});
             return result;
         };
     }
@@ -121,6 +130,26 @@ function doRoutingTests(graphFlow, TestClass)
                 logProps(),
                 writeError('warn'),
                 test("route data with default value", function(r) {
+                    this.assert(function() {
+                        return r.data.controller == "Home" && r.data.action == "Index" && typeof r.data.id == 'undefined';
+                    });
+                })
+            ),
+            routeGetFromApplicationUri: sequence(
+                CreateRouter(),
+                alternate(
+                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index", id: null } }),
+                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", id: null } }),
+                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { action: "Index", id: null } }),
+                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { id: null } })
+                ),
+                alternate(
+                    GetRouteDataFromUri("/MyApp/Home/Index/"),
+                    GetRouteDataFromUri("/MyApp/Home/Index")
+                ),
+                logProps(),
+                writeError('warn'),
+                test("route data from application uri", function(r) {
                     this.assert(function() {
                         return r.data.controller == "Home" && r.data.action == "Index" && typeof r.data.id == 'undefined';
                     });
@@ -419,7 +448,7 @@ function doRoutingTests(graphFlow, TestClass)
                 test("build URI with default values at end", function(uri) {
                     this.log(uri);
                     this.assert(function() {
-                        return uri == "~";
+                        return uri == "~/";
                     });
                 })
             ),
@@ -465,6 +494,30 @@ function doRoutingTests(graphFlow, TestClass)
                         });
                 })
             ),
+            // buildUriStart1
+            buildApplicationUri: sequence(
+                null, // counter the catchCombinator bug... it shouldn't be a combinator
+                catchError(alternate(
+                    BuildApplicationURI({ action: "Details", id: "10" })
+                )),
+                writeError('log'),
+                test("build URI for application", function(d) {
+                    this.log(JSON.stringify(d));
+                    var c = this.currentData;
+                    if (c.controller == "Home")
+                        this.assert(function() {
+                            return d.value == "/MyApp/Home/Details/10";
+                        });
+                    else if (c.area == "App" && c.controller == "Schedule")
+                        this.assert(function() {
+                            return d.value == "/MyApp/App/Schedule/Details/10";
+                        });
+                    else if (c.controller == "Schedule")
+                        this.assert(function() {
+                            return d.value == "/MyApp/Schedule/Details/10";
+                        });
+                })
+            ),
             buildUriWithConstraint: sequence(
                 CreateRouter(),
                 AddRoute({ UriPattern: "{controller}/{action}/{id}",
@@ -489,7 +542,7 @@ function doRoutingTests(graphFlow, TestClass)
                         });
                     if (t.mrk == "B")
                         this.assert(function() {
-                            return d.value == "~?mrk=B";
+                            return d.value == "~/?mrk=B";
                         });
                     if (t.mrk == "C")
                         this.assert(function() {
@@ -497,7 +550,7 @@ function doRoutingTests(graphFlow, TestClass)
                         });
                     if (t.mrk == "D")
                         this.assert(function() {
-                            return d.value == "~?mrk=D";
+                            return d.value == "~/?mrk=D";
                         });
                     if (t.mrk == "E")
                         this.assert(function() {
@@ -513,6 +566,7 @@ function doRoutingTests(graphFlow, TestClass)
 
         doSomeTests(alternate(
                 tests.routeWithDefault,
+                tests.routeGetFromApplicationUri,
                 tests.noValueNoDefault,
                 tests.missingMiddle,
                 tests.constraintFail,
@@ -538,6 +592,7 @@ function doRoutingTests(graphFlow, TestClass)
                         tests.buildUriWithDefAtEnd,
                         tests.buildUriKeepingArea,
                         tests.buildUriKeepingAreaCtrl,
+                        tests.buildApplicationUri,
                         undefined // no test at all
                     ),
                     undefined // no test at all
