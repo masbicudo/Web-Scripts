@@ -6,7 +6,7 @@ var TextBox = React.createClass({
                         return this.set(e, "value", e.target.value);
                     }.bind(this);
                 return (
-                        <input type="textbox" onChange={setter} value={this.props.value} />
+                        <input type="textbox" onChange={setter} value={value} />
                     );
             }
     });
