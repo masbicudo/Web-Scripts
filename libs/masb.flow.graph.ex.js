@@ -68,7 +68,9 @@ function gfexEnableMarkers(graphFlow) {
 
     return {
         disableMarkers: function() {
-            if (graphFlow.marker !== gfMarker || graphFlow.acceptMarker !== gfAcceptMarker || graphFlow.defaultInherit !== gfMarkerInherit)
+            if (graphFlow.marker !== gfMarker
+            || graphFlow.acceptMarker !== gfAcceptMarker
+            || graphFlow.defaultInherit !== gfMarkerInherit)
                 throw new Error("Cannot disable markers, because other layers were added over it.");
             graphFlow.marker = oldMarker;
             graphFlow.acceptMarker = oldAcceptMarker;

@@ -1,5 +1,6 @@
-// Tests Framewok JSX-UI v1.0.1    2014-12-14
+// Tests Framewok JSX-UI v1.0.2    2015-01-30
 //  author: Miguel Angelo
+// v1.0.2 - added test counting
 // v1.0.1 - corrected bug when displaying errors of type matching /.+Error$/
 function sumator(a,b) {
     return a + b;
@@ -276,9 +277,14 @@ var TestTables = React.createClass({
                 var testDataArray = this.props.testDataArray,
                     children = [];
 
+                children.push(<div className="total-count">Total tests:&nbsp;
+                        {testDataArray.map(function(s){return s.length;}).reduce(sumator, 0)}
+                    </div>);
                 for (var it = 0; it < testDataArray.length; it++) {
                     if (testDataArray.length > 1)
-                        children.push(<h3 key={"h3-"+it+1}>test set #{it+1}</h3>);
+                        children.push(<h3 key={"h3-"+it+1}>test set #{it+1}&nbsp;
+                                <span className="test-count">(tests: {testDataArray[it].length})</span>
+                            </h3>);
                     children.push(<TestTable testData={testDataArray[it]} key={"tbl-"+it+1} />);
                 }
 

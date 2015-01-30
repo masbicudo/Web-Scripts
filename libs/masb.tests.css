@@ -1,6 +1,7 @@
-/* Tests CSS v1.0.0
+/* Tests CSS v1.0.2
  * Author: Miguel Angelo
  * Created on: 2014-11-25
+ * Last updated: 2015-01-30
  */
 body {
     font-family: sans-serif;
@@ -121,4 +122,12 @@ pre {
     padding-left: 10px;
     vertical-align: top;
     border-left: 1px solid lightgray;
+}
+.test-count {
+    vertical-align: middle;
+    font-size: 80%;
+    font-weight: normal;
+}
+.total-count {
+    font-size: 20px;
 }

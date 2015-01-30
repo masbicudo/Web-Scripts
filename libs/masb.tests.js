@@ -1,6 +1,6 @@
-// Tests Framewok v1.0.0    2014-11-27
+// Tests Framewok v1.1.0    2015-01-27
 //  author: Miguel Angelo
-//  require: masb.flow.graph.v1.4.0.js
+//  require: masb.flow.graph.v1.6.0.js
 function createTestClass(graphFlow) {
 
     function doWith(o, f) { f.call(o); return o; }
