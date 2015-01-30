@@ -33,8 +33,9 @@ var gearz = {
                 if (prevDef)
                     return;
 
-                this.state[propName] = newValue;
-                this.forceUpdate();
+                var newState = {};
+                newState[propName] = newValue;
+                this.setState(newState);
             },
         setter: function(propName, newValue) {
                 return (function(e) {
