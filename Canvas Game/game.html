@@ -99,7 +99,7 @@
                 // setup GLSL program
                 var vertexShader = createShaderFromScriptElement(gl, "2d-vertex-shader");
                 
-                var num = parseInt(prompt());
+                var num = parseInt(prompt("Type a number between -20 and 20"));
                 var program;
                 if (num < 0) {
                     var replacer = function (s) { return s.replace("%ITERATIONS%", -num); };
