@@ -285,10 +285,19 @@
         freeze(this);
     }
 
-    function RouteMatch(data, error) {
-        if (!(this instanceof RouteMatch)) throw new Error("Call with 'new' operator.");
-        this.data = data;
-        this.error = error;
+    function freezeAny(o) {
+        if (typeof o == 'object' && o != null)
+            return freeze(o);
+        return o;
+    }
+
+    function RouteMatch(data, tokens, error, details) {
+        if (!(this instanceof RouteMatch))
+            throw new Error("Call with 'new' operator.");
+        this.data = freezeAny(data);
+        this.tokens = freezeAny(tokens);
+        this.error = freezeAny(error);
+        this.details = freezeAny(details);
         freeze(this);
     }
     this.RouteMatch = RouteMatch;
@@ -345,6 +354,8 @@
                 var item = seg[itSS];
                 if (item instanceof PlaceHolderBase) {
                     var name = item.name;
+                    if (!params.hasOwnProperty(name))
+                        return null;
                     var param = params[name];
                     var c = ifUndef(param.current, g);
                     var t = param.target;
@@ -507,12 +518,25 @@
         return uri;
     }
 
+    function mergeMixin(n, o) {
+        if (typeof n == 'function') {
+            return n;
+        }
+    }
+
+    function appendParam(v0, v1) {
+        return isUndefined(v0) ? (v1||"")
+            : isNullOrEmpty(v0) ? ";"+(v1||"")
+            : v0+";"+(v1||"");
+    }
+
     function Router(opts) {
         if (!(this instanceof Router))
             throw new Error("Must call 'Router' with 'new' operator.");
         var routes = opts.routes,
             globalValues = opts.globals,
-            basePath = opts.basePath;
+            basePath = opts.basePath,
+            mixins = opts.mixins || [];
         var _routes = [];
 
         if (routes instanceof Array)
@@ -530,6 +554,7 @@
             isUndefined(basePath) ? "~/" :
             isNullOrEmpty(basePath) ? "/" :
             ensureStringLimits('/', '/', basePath);
+        this.mixins = mixins;
 
         function toVirtualPath(path) {
             path=""+path;
@@ -546,6 +571,7 @@
         }
 
         function getURIFromRouteData(currentRouteData, targetRouteData, opts) {
+            opts = opts || {};
             for (var itR = 0; itR < _routes.length; itR++) {
                 var route = _routes[itR];
 
@@ -561,46 +587,83 @@
 
             throw new Error("No matching route to build the URI");
         }
-        
-        function getRouteDataFromURI(uri) {
+
+        function getQueryValues(uri) {
+            uri = isNullOrEmpty(uri) || isUndefined(uri) ? "" : ""+uri;
+            uri = uri.replace(new RegExp("^"+escapeRegExp(this.basePath), "g"), "~/");
+            var qs = uri.split(/[?&]/g);
+            uri = qs.splice(0,1)[0];
+            qs = qs.map(function(x){
+                    return decodeURIComponent(x)
+                        .replace(/\+/g, " ")
+                        .replace('=', '&')
+                        .split('&');
+                });
+            var qv = {};
+            for (var it = 0; it < qs.length; it++) {
+                var kv = qs[it],
+                    name = kv[0];
+                qv[name] = appendParam(qv[name], kv[1]);
+            }
+            
+            return { queryValues: qv, path: uri };
+        }
+
+        function getRouteDataFromURI(uri, opts) {
+            var details = opts && opts.verbose ? [] : null;
+            var parts = getQueryValues.call(this, uri);
             // ASP.NET routing code (for reference): http://referencesource.microsoft.com/#System.Web/Routing/ParsedRoute.cs
             for (var itR = 0; itR < _routes.length; itR++) {
                 var route = _routes[itR];
 
-                uri = uri.replace(new RegExp("^"+escapeRegExp(this.basePath), "g"), "~/");
                 // Trying to match the route information with the given URI.
                 // Convert the URI pattern to a RegExp that can extract information from a real URI.
                 var segments = route.segments;
-                var segValues = route.match(uri);
-                if (!segValues)
-                    return new RouteMatch(null, "Match failed: URI does not match");
-                var validation = validateSegmentValues(segments, route, segValues);
 
-                if (validation)
-                    return new RouteMatch(null, validation);
+                var segValues = route.match(parts.path);
+                if (!segValues) {
+                    if (details) details.push("Match failed: URI does not match");
+                    continue;
+                }
+
+                var validation = validateSegmentValues(segments, route, segValues);
+                if (validation) {
+                    if (details) details.push(validation);
+                    continue;
+                }
 
                 var values = getRouteValues(route, segments, segValues);
-                var r = {};
+                var r = {}, t = {};
 
-                // copy route data to the resulting object
-                for (var kt in route.DataTokens)
-                    r[kt] = route.DataTokens[kt];
+                // Copy route data to the resulting object.
+                // Copying `DataTokens` to the tokens variable.
+                if (route.DataTokens)
+                    for (var kt in route.DataTokens)
+                        t[kt] = route.DataTokens[kt];
 
-                for (var kd in route.Defaults)
-                    r[kd] = route.Defaults[kd];
+                // Copying the default values to the used values,
+                // then overriding them with query values,
+                // and finally overriding them with route data.
+                if (route.Defaults)
+                    for (var kd in route.Defaults)
+                        r[kd] = route.Defaults[kd];
+
+                if (parts.queryValues)
+                    for (var kt in parts.queryValues)
+                        r[kt] = parts.queryValues[kt];
 
                 for (var kv in values)
                     r[kv] = values[kv];
 
-                return new RouteMatch(r, null);
+                return new RouteMatch(r, t, null, null);
             }
 
-            return new RouteMatch(null, "No routes matched the URI.");
+            return new RouteMatch(null, null, "No routes matched the URI.", details);
         };
 
         function addRoute(name, route) {
             if (typeof name !== 'string' && name != null || name === "" || /^\d+$/.test(name))
-                throw new Error("Argument name is invalid");
+                throw new Error("Invalid argument: route name is invalid");
             _routes.push(new Route(route));
             if (name)
                 _routes[name] = route;
@@ -609,6 +672,11 @@
         function getRoute(idOrName) {
             return _routes[idOrName];
         };
+
+        // applying the mix-ins...
+        // must be the last thing done before freezing
+        for (var it = 0; it < mixins.length; it++)
+            mixins[it].call(this);
 
         freeze(this);
     }

@@ -185,14 +185,17 @@ function createTestClass(graphFlow) {
 
     function funcToString(fn) {
         var fnStr = fn.toString();
-        var spc = /[\r\n]([\t ]+)\}$/g.exec(fnStr)[1];
-        fnStr = fnStr.replace(new RegExp("^"+spc, "gm"), '');
-        //fnStr = fnStr.replace(/^\s+/gm, function(s) { return s+s; });
+        var spcMatch = /[\r\n]([\t ]+)\}$/g.exec(fnStr);
+        if (spcMatch) {
+            var spc = spcMatch[1];
+            fnStr = fnStr.replace(new RegExp("^"+spc, "gm"), '');
+            //fnStr = fnStr.replace(/^\s+/gm, function(s) { return s+s; });
+        }
         return fnStr;
     }
 
     Tests.lambdaStr = function lambdaStr(fn) {
-        var rgx = /^function(?:\s+\w*\s*)?\([^\)]*\)\s+\{(?:\s+|debugger;|\/\/[^\r\n]*|\/\*(?:(?!\*\/).)+\*\/)+return\s+([^;]*);[\s;]+\}$/g;
+        var rgx = /^function(?:\s+\w*\s*)?\([^\)]*\)\s+\{(?:\s+|debugger;|\/\/[^\r\n]*|\/\*(?:(?!\*\/).)+\*\/)+return\s+((?:[^;"']|"(?:\\\\|\\"|[^\\"])*"|'(?:\\\\|\\'|[^\\'])*')*);[\s;]+\}$/g;
         var m = rgx.exec(Tests.funcToString(fn));
         return m[1];
     }

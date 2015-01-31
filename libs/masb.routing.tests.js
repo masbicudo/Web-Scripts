@@ -48,9 +48,23 @@ function doRoutingTests(graphFlow, TestClass)
         };
     }
 
+    function CreateRouterWithLocationMixin() {
+        return function CreateRouter() {
+            var globals = { area: null };
+            this.step("CreateRouterWithLocationMixin: globals = " + JSON.stringify(globals));
+            return this.router = new Router({
+                routes: [],
+                globals: globals,
+                basePath: 'MyApp',
+                // this mix-in tracks the current current location internally
+                mixins: [routerMixins.location] });
+        };
+    }
+
     function AddRoute(o) {
         return function AddRoute() {
             this.step("AddRoute: " + JSON.stringify(o));
+            this.lastRoute = o;
             return this.router.addRoute(null, o);
         };
     }
@@ -58,7 +72,7 @@ function doRoutingTests(graphFlow, TestClass)
     function GetRouteDataFromUri(uri) {
         return function GetRouteDataFromUri() {
             this.step("GetRouteDataFromUri: " + uri);
-            return this.routeData = this.router.getRouteDataFromURI(uri);
+            return this.routeData = this.router.getRouteDataFromURI(uri, {verbose:true});
         };
     }
     
@@ -66,6 +80,14 @@ function doRoutingTests(graphFlow, TestClass)
         return function SetCurrentData(x) {
             this.step("SetCurrentData: " + JSON.stringify(current));
             this.currentData = current;
+            return x;
+        };
+    }
+
+    function SetLocationMixinCurrentData(current) {
+        return function SetLocationMixinCurrentData(x) {
+            this.step("SetLocationMixinCurrentData: " + JSON.stringify(current));
+            this.router.setCurrentLocation(current);
             return x;
         };
     }
@@ -79,11 +101,26 @@ function doRoutingTests(graphFlow, TestClass)
         };
     }
 
+    function LocationMixin_BuildURI(target, opts) {
+        return function LocationMixin_BuildURI() {
+            this.step("LocationMixin_BuildURI: " + JSON.stringify(target));
+            this.target = target;
+            var result = opts
+                ? this.router.getURIFromRouteData(target, opts)
+                : this.router.getURIFromRouteData(target);
+            return result;
+        };
+    }
+
+    function LocationMixin_BuildURIVirt(target) {
+        return LocationMixin_BuildURI(target, {virtual: true});
+    }
+
     function BuildApplicationURI(target) {
         return function BuildURI() {
             this.step("BuildApplicationURI: " + JSON.stringify(target));
             this.target = target;
-            var result = this.router.getURIFromRouteData(this.currentData, target, {virtual: false});
+            var result = this.router.getURIFromRouteData(this.currentData, target);
             return result;
         };
     }
@@ -170,7 +207,7 @@ function doRoutingTests(graphFlow, TestClass)
                 logProps(),
                 test("no value and no default {id}", function(r) {
                     this.assert(function() {
-                        return r.error === "Match failed: no value and no default for '{id}'";
+                        return r.error && 0 <= r.details.indexOf("Match failed: no value and no default for '{id}'");
                     });
                 })
             ),
@@ -192,7 +229,7 @@ function doRoutingTests(graphFlow, TestClass)
                 writeError('log'),
                 test("middle missing parameter", function(r) {
                     this.assert(function() {
-                        return r.error === "Match failed: missing segments may only appear at end";
+                        return r.error && 0 <= r.details.indexOf("Match failed: missing segments may only appear at end");
                     });
                 })
             ),
@@ -217,7 +254,7 @@ function doRoutingTests(graphFlow, TestClass)
                 logProps(),
                 test("constraint fail", function(r) {
                     this.assert(function() {
-                        return r.error == "Match failed: constraint of '{date}' did not match";;
+                        return r.error && 0 <= r.details.indexOf("Match failed: constraint of '{date}' did not match");
                     });
                 })
             ),
@@ -341,7 +378,7 @@ function doRoutingTests(graphFlow, TestClass)
                 writeError('log'),
                 test("segment is partially filled", function(r) {
                     this.assert(function() {
-                        return r.error == "Match failed: segment is partially filled";
+                        return r.error && 0 <= r.details.indexOf("Match failed: segment is partially filled");
                     });
                 })
             ),
@@ -367,7 +404,7 @@ function doRoutingTests(graphFlow, TestClass)
                 writeError('log'),
                 test("missing literal", function(r) {
                     this.assert(function() {
-                        return r.error == "Match failed: literal cannot be missing '-'";
+                        return r.error && 0 <= r.details.indexOf("Match failed: literal cannot be missing '-'");
                     });
                 })
             ),
@@ -392,11 +429,73 @@ function doRoutingTests(graphFlow, TestClass)
                         writeError('log'),
                         test("discrepancy #2", function(r) {
                             this.assert(function() {
-                                return r.error == "Match failed: segment is partially filled";
+                                return r.error && 0 <= r.details.indexOf("Match failed: segment is partially filled");
                             });
                         })
                     )
                 )
+            ),
+            matchFailThenMatchOk: sequence(
+                CreateRouter(),
+                alternate(
+                    AddRoute({ UriPattern: "App/{controller}" }),
+                    AddRoute({ UriPattern: "{controller}", Constraints: { controller: "^Schedule$" } })
+                ),
+                AddRoute({ UriPattern: "Home", Defaults: { controller: "Home" } }),
+                GetRouteDataFromUri("~/Home"),
+                writeError('log'),
+                logProps(),
+                test("fail 1st route constraint and match next", function(r) {
+                    this.assert(function() {
+                        return r.data != null;
+                    });
+                })
+            ),
+            matchWithQuery: sequence(
+                CreateRouter(),
+                AddRoute({ UriPattern: "Home", Defaults: { controller: "Home" } }),
+                alternate(
+                    GetRouteDataFromUri("~/Home?num=20"),
+                    GetRouteDataFromUri("~/Home?num=20&name=masb"),
+                    GetRouteDataFromUri("~/Home?num=20&name=masb&ok"),
+                    GetRouteDataFromUri("~/Home?nums=30&name=masb&ok&nums=40"),
+                    GetRouteDataFromUri("~/Home?fname=miguel+angelo"),
+                    GetRouteDataFromUri("~/Home?ok="),
+                    GetRouteDataFromUri("~/Home?fname=miguel%20angelo"),
+                    GetRouteDataFromUri("~/Home?amp=%26"),
+                    GetRouteDataFromUri("~/Home?nums=30?name=masb&ok?nums=40"),
+                    GetRouteDataFromUri("~/Home?nums=30;40?name=masb&ok"),
+                    GetRouteDataFromUri("~/Home?eq=a=b&name=masb")
+                ),
+                writeError('log'),
+                logProps(),
+                test("with query", function(r) {
+                    this.assert(function() {
+                        return r.data !== null
+                            && (r.data.num||"20")==="20"
+                            && (r.data.name||"masb")==="masb"
+                            && (r.data.ok||"")===""
+                            && (r.data.nums||"30;40")==="30;40"
+                            && (r.data.fname||"miguel angelo")==="miguel angelo"
+                            && (r.data.amp||"&")==="&"
+                            && (r.data.eq||"a=b")==="a=b";
+                    });
+                })
+            ),
+            matchWithEmptyQuery: sequence(
+                CreateRouter(),
+                AddRoute({ UriPattern: "Home", Defaults: { controller: "Home" } }),
+                alternate(
+                    GetRouteDataFromUri("~/Home?"),
+                    GetRouteDataFromUri("~/Home?&")
+                ),
+                writeError('log'),
+                logProps(),
+                test("with empty query", function(r) {
+                    this.assert(function() {
+                        return r.data != null;
+                    });
+                })
             ),
             buildUriStart1: sequence(
                 CreateRouter(),
@@ -561,6 +660,88 @@ function doRoutingTests(graphFlow, TestClass)
                             return d.error && d.error.message == "No matching route to build the URI";
                         });
                 })
+            ),
+            buildUriWithoutData1: sequence(
+                CreateRouter(),
+                alternate(
+                    AddRoute({ UriPattern: "{controller}/{action}" })
+                ),
+                catchError(
+                    alternate(
+                        BuildURI({ controller: "Home" }),
+                        BuildURI({ })
+                    )
+                ),
+                logProps(),
+                test("build URI w/o data - error", function(d) {
+                    this.assert(function() { return !!d.error; });
+                })
+            ),
+            buildUriWithoutData2: sequence(
+                CreateRouter(),
+                AddRoute({ UriPattern: "{controller}/{action}" }),
+                AddRoute({ UriPattern: "Home" }),
+                catchError(
+                    alternate(
+                        BuildURI({ controller: "Home" }),
+                        BuildURI({ })
+                    )
+                ),
+                logProps(),
+                test("build URI w/o data - no error", function(d) {
+                    this.assert(function() { return !d.error; });
+                })
+            ),
+            buildUriMatchingNone: sequence(
+                CreateRouter(),
+                alternate(
+                    AddRoute({ UriPattern: "" }),
+                    AddRoute({ UriPattern: "Home" }),
+                    AddRoute({ UriPattern: "Home/Index" })
+                ),
+                catchError(BuildURI({ num: 20 })),
+                logProps(),
+                test("build URI matching 0 place-holders", function(d) {
+                    var uri = this.lastRoute.UriPattern;
+                    if (uri=="")
+                        this.assert(function() { return d.value == "~/?num=20"; });
+                    else if (uri=="Home")
+                        this.assert(function() { return d.value == "~/Home?num=20"; });
+                    else if (uri=="Home/Index")
+                        this.assert(function() { return d.value == "~/Home/Index?num=20"; });
+                })
+            ),
+            buildUriMatchFail: sequence(
+                CreateRouter(),
+                AddRoute({ UriPattern: "{controller}", Constraints: { controller: "^Schedule$" } }),
+                AddRoute({ UriPattern: "Home", Defaults: { controller: "Home" } }),
+                catchError(BuildURI({ controller: "Home" })),
+                logProps(),
+                test("build URI fail 1st, but match 2nd", function(d) {
+                    this.assert(function() { return d.value == "~/Home"; });
+                })
+            ),
+            buildUriWithLocationMixin: sequence(
+                CreateRouterWithLocationMixin(),
+                AddRoute({ UriPattern: "{controller}/{action}" }),
+                alternate(
+                    SetLocationMixinCurrentData({ controller: "Home", action: "Index" }),
+                    SetLocationMixinCurrentData({ controller: "Home", action: "Details" })
+                ),
+                catchError(alternate(
+                    LocationMixin_BuildURIVirt({ mrk: "A", controller: "Home", action: "Details" }),
+                    LocationMixin_BuildURI({ mrk: "B", controller: "Home", action: "Details" }),
+                    LocationMixin_BuildURIVirt({ mrk: "A", controller: "Home", action: "Index" }),
+                    LocationMixin_BuildURI({ mrk: "B", controller: "Home", action: "Index" })
+                )),
+                logProps(),
+                test("build URI using location mix-in", function(d) {
+                    var t = this.target;
+                    if (t.mrk == "A")
+                        this.assert(function() { return d.value == "~/?mrk=A"; });
+                    if (t.mrk == "B")
+                        this.assert(function() { return d.value == "/MyApp/?mrk=B"; });
+                })
             )
         };
 
@@ -579,6 +760,8 @@ function doRoutingTests(graphFlow, TestClass)
                 tests.segmentPartiallyFilled,
                 tests.missingLiteral,
                 tests.discrepancies,
+                tests.matchFailThenMatchOk,
+                tests.matchWithQuery,
                 undefined // no test at all
             ));
 
@@ -598,6 +781,15 @@ function doRoutingTests(graphFlow, TestClass)
                     undefined // no test at all
                 ),
                 tests.buildUriWithConstraint,
+                tests.buildUriWithoutData1,
+                tests.buildUriWithoutData2,
+                tests.buildUriMatchingNone,
+                tests.buildUriMatchFail,
+                undefined // no test at all
+            ));
+        
+        doSomeTests(alternate(
+                tests.buildUriWithLocationMixin,
                 undefined // no test at all
             ));
     }
