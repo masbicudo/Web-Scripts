@@ -1,4 +1,4 @@
-// Masb Routing    v0.2.0
+// Masb Routing    v0.2.1
 //
 //  This is responsible for routing, that is,
 //  extracting information from an URI so that
@@ -41,6 +41,7 @@
         this.message = message;
         this.type = type;
     }
+    var freeze = Object.freeze;
     this.RouteError = RouteError;
     var types;
     RouteError.prototype = extend(Object.create(Error.prototype), {
@@ -57,9 +58,9 @@
     });
 
     function Literal(value) {
-         this.value = value.replace(/\{\{/g, "{").replace(/\}\}/g, "}");
-         this.regexp = escapeRegExp(this.value);
-        Object.freeze(this);
+        this.value = value.replace(/\{\{/g, "{").replace(/\}\}/g, "}");
+        this.regexp = escapeRegExp(this.value);
+        freeze(this);
     }
     Literal.prototype = {
         toString: function() {
@@ -69,7 +70,7 @@
 
     function PlaceHolderBase(name) {
         this.name = name;
-        Object.freeze(this);
+        freeze(this);
     }
     PlaceHolderBase.prototype = {
         toString: function() {
@@ -263,7 +264,7 @@
                 this.constraint = constraints[name];
                 delete constraints[name];
             }
-            Object.freeze(this);
+            freeze(this);
         }
         PlaceHolder.prototype = Object.create(PlaceHolderBase.prototype);
 
@@ -281,14 +282,14 @@
         this.Defaults = route.Defaults;
         this.Constraints = route.Constraints;
 
-        Object.freeze(this);
+        freeze(this);
     }
 
     function RouteMatch(data, error) {
         if (!(this instanceof RouteMatch)) throw new Error("Call with 'new' operator.");
         this.data = data;
         this.error = error;
-        Object.freeze(this);
+        freeze(this);
     }
     this.RouteMatch = RouteMatch;
 
@@ -609,7 +610,7 @@
             return _routes[idOrName];
         };
 
-        Object.freeze(this);
+        freeze(this);
     }
 
     return this.Router = Router;
