@@ -10,28 +10,28 @@
 
 (function() {
 
-    function getUriOrRouteDataInfo(value) {
+    function getInfo(value) {
         if (typeof value == 'string') {
             var routeMatch = this.matchRoute(value);
             var uri = this.makeURI(routeMatch.data);
-            return Object.freeze({ routeData: routeMatch.data, uri: uri });
+            return Object.freeze({ routeData: routeMatch.data, dataTokens: routeMatch.tokens, uri: uri });
         }
         else if (typeof value == 'object') {
             var uri = this.makeURI(value);
-            var routeData = this.matchRoute(uri);
-            return Object.freeze({ routeData: routeData, uri: uri });
+            var routeMatch = this.matchRoute(uri);
+            return Object.freeze({ routeData: routeMatch.data, dataTokens: routeMatch.tokens, uri: uri });
         }
-        throw new Error("Invalid value passed to 'getUriOrRouteDataInfo'");
+        throw new Error("Invalid value passed to 'getInfo'");
     }
 
     var mixins = Object.freeze({
         location: function() {
             var current = {};
 
-            this.getUriOrRouteDataInfo = getUriOrRouteDataInfo.bind(this);
+            this.getInfo = getInfo.bind(this);
 
             this.setCurrentLocation = (function(value) {
-                current = this.getUriOrRouteDataInfo(value);
+                current = this.getInfo(value);
             }).bind(this);
 
             this.getCurrentLocationInfo = (function() {
