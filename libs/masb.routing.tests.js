@@ -69,13 +69,13 @@ function doRoutingTests(graphFlow, TestClass)
         };
     }
 
-    function GetRouteDataFromUri(uri) {
-        return function GetRouteDataFromUri() {
-            this.step("GetRouteDataFromUri: " + uri);
-            return this.routeData = this.router.getRouteDataFromURI(uri, {verbose:true});
+    function GetRouteMatchFromUri(uri) {
+        return function GetRouteMatchFromUri() {
+            this.step("GetRouteMatchFromUri: " + uri);
+            return this.routeMatch = this.router.matchRoute(uri, {verbose:true});
         };
     }
-    
+
     function SetCurrentData(current) {
         return function SetCurrentData(x) {
             this.step("SetCurrentData: " + JSON.stringify(current));
@@ -96,7 +96,7 @@ function doRoutingTests(graphFlow, TestClass)
         return function BuildURI() {
             this.step("BuildURI: " + JSON.stringify(target));
             this.target = target;
-            var result = this.router.getURIFromRouteData(this.currentData, target, {virtual: true});
+            var result = this.router.makeURI(this.currentData, target, {virtual: true});
             return result;
         };
     }
@@ -106,8 +106,8 @@ function doRoutingTests(graphFlow, TestClass)
             this.step("LocationMixin_BuildURI: " + JSON.stringify(target));
             this.target = target;
             var result = opts
-                ? this.router.getURIFromRouteData(target, opts)
-                : this.router.getURIFromRouteData(target);
+                ? this.router.makeURI(target, opts)
+                : this.router.makeURI(target);
             return result;
         };
     }
@@ -120,7 +120,7 @@ function doRoutingTests(graphFlow, TestClass)
         return function BuildURI() {
             this.step("BuildApplicationURI: " + JSON.stringify(target));
             this.target = target;
-            var result = this.router.getURIFromRouteData(this.currentData, target);
+            var result = this.router.makeURI(this.currentData, target);
             return result;
         };
     }
@@ -161,8 +161,8 @@ function doRoutingTests(graphFlow, TestClass)
                     AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { id: null } })
                 ),
                 alternate(
-                    GetRouteDataFromUri("~/Home/Index/"),
-                    GetRouteDataFromUri("~/Home/Index")
+                    GetRouteMatchFromUri("~/Home/Index/"),
+                    GetRouteMatchFromUri("~/Home/Index")
                 ),
                 logProps(),
                 writeError('warn'),
@@ -181,8 +181,8 @@ function doRoutingTests(graphFlow, TestClass)
                     AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { id: null } })
                 ),
                 alternate(
-                    GetRouteDataFromUri("/MyApp/Home/Index/"),
-                    GetRouteDataFromUri("/MyApp/Home/Index")
+                    GetRouteMatchFromUri("/MyApp/Home/Index/"),
+                    GetRouteMatchFromUri("/MyApp/Home/Index")
                 ),
                 logProps(),
                 writeError('warn'),
@@ -201,8 +201,8 @@ function doRoutingTests(graphFlow, TestClass)
                     AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { } })
                 ),
                 alternate(
-                    GetRouteDataFromUri("~/Home/Index/"),
-                    GetRouteDataFromUri("~/Home/Index")
+                    GetRouteMatchFromUri("~/Home/Index/"),
+                    GetRouteMatchFromUri("~/Home/Index")
                 ),
                 logProps(),
                 test("no value and no default {id}", function(r) {
@@ -219,9 +219,9 @@ function doRoutingTests(graphFlow, TestClass)
                             UriPattern: "{controller}/{action}/{id}",
                             Defaults: { controller: "Home", action: "Index", id: null } }),
                         alternate(
-                            GetRouteDataFromUri("~/Home//20"),
-                            GetRouteDataFromUri("~//Index/20"),
-                            GetRouteDataFromUri("~///20")
+                            GetRouteMatchFromUri("~/Home//20"),
+                            GetRouteMatchFromUri("~//Index/20"),
+                            GetRouteMatchFromUri("~///20")
                         )
                     )
                 ),
@@ -246,9 +246,9 @@ function doRoutingTests(graphFlow, TestClass)
                         Constraints: { date: function(val,ctx) { return /^\d{4}-\d\d-\d\d$/g.test(val); } } })
                 ),
                 alternate(
-                    GetRouteDataFromUri("~/Schedule/2015-01-m7"),
-                    GetRouteDataFromUri("~/Schedule/2015-m1-17/"),
-                    GetRouteDataFromUri("~/Schedule/m015-01-17/20")
+                    GetRouteMatchFromUri("~/Schedule/2015-01-m7"),
+                    GetRouteMatchFromUri("~/Schedule/2015-m1-17/"),
+                    GetRouteMatchFromUri("~/Schedule/m015-01-17/20")
                 ),
                 writeError('log'),
                 logProps(),
@@ -263,15 +263,15 @@ function doRoutingTests(graphFlow, TestClass)
                 alternate(
                     sequence(
                         AddRoute({ UriPattern: "Schedule/{{id}}" }),
-                        GetRouteDataFromUri("~/Schedule/{id}")
+                        GetRouteMatchFromUri("~/Schedule/{id}")
                     ),
                     sequence(
                         AddRoute({ UriPattern: "Schedule/{{id" }),
-                        GetRouteDataFromUri("~/Schedule/{id")
+                        GetRouteMatchFromUri("~/Schedule/{id")
                     ),
                     sequence(
                         AddRoute({ UriPattern: "Schedule/id}}" }),
-                        GetRouteDataFromUri("~/Schedule/id}")
+                        GetRouteMatchFromUri("~/Schedule/id}")
                     )
                 ),
                 writeError('log'),
@@ -357,20 +357,20 @@ function doRoutingTests(graphFlow, TestClass)
                     sequence(
                         AddRoute({ UriPattern: "Schedule/{name}-{id}/{xpto}", Defaults: { name: null, id: null, xpto: null } }),
                         alternate(
-                            GetRouteDataFromUri("~/Schedule/Miguel-"),
-                            GetRouteDataFromUri("~/Schedule/-/"),
-                            GetRouteDataFromUri("~/Schedule/-12/any"),
-                            GetRouteDataFromUri("~/Schedule/Miguel-/any"),
-                            GetRouteDataFromUri("~/Schedule/-12"),
-                            GetRouteDataFromUri("~/Schedule/-/any")
+                            GetRouteMatchFromUri("~/Schedule/Miguel-"),
+                            GetRouteMatchFromUri("~/Schedule/-/"),
+                            GetRouteMatchFromUri("~/Schedule/-12/any"),
+                            GetRouteMatchFromUri("~/Schedule/Miguel-/any"),
+                            GetRouteMatchFromUri("~/Schedule/-12"),
+                            GetRouteMatchFromUri("~/Schedule/-/any")
                         )
                     ),
                     sequence(
                         AddRoute({ UriPattern: "File/{name}-{type}", Defaults: { name: null, type: null } }),
                         alternate(
-                            GetRouteDataFromUri("~/File/fileName-"),
-                            GetRouteDataFromUri("~/File/-txt"),
-                            GetRouteDataFromUri("~/File/-")
+                            GetRouteMatchFromUri("~/File/fileName-"),
+                            GetRouteMatchFromUri("~/File/-txt"),
+                            GetRouteMatchFromUri("~/File/-")
                         )
                     )
                 ),
@@ -388,15 +388,15 @@ function doRoutingTests(graphFlow, TestClass)
                     sequence(
                         AddRoute({ UriPattern: "Schedule/{name}-{id}/{xpto}", Defaults: { name: null, id: null, xpto: null } }),
                         alternate(
-                            GetRouteDataFromUri("~/Schedule/Miguel"),
-                            GetRouteDataFromUri("~/Schedule//any"),
-                            GetRouteDataFromUri("~/Schedule/Miguel/any")
+                            GetRouteMatchFromUri("~/Schedule/Miguel"),
+                            GetRouteMatchFromUri("~/Schedule//any"),
+                            GetRouteMatchFromUri("~/Schedule/Miguel/any")
                         )
                     ),
                     sequence(
                         AddRoute({ UriPattern: "File/{name}-{type}", Defaults: { name: null, type: null } }),
                         alternate(
-                            GetRouteDataFromUri("~/File/fileName")
+                            GetRouteMatchFromUri("~/File/fileName")
                         )
                     )
                 ),
@@ -413,7 +413,7 @@ function doRoutingTests(graphFlow, TestClass)
                 alternate(
                     sequence(
                         AddRoute({ UriPattern: "{x}-{y}", Defaults: { } }),
-                        GetRouteDataFromUri("~/x-y-z"),
+                        GetRouteMatchFromUri("~/x-y-z"),
                         logProps(),
                         writeError('log'),
                         test("discrepancy #1", function(r) {
@@ -424,7 +424,7 @@ function doRoutingTests(graphFlow, TestClass)
                     ),
                     sequence(
                         AddRoute({ UriPattern: "{x}-{y}", Defaults: { x: null } }),
-                        GetRouteDataFromUri('~/---'),
+                        GetRouteMatchFromUri('~/---'),
                         logProps(),
                         writeError('log'),
                         test("discrepancy #2", function(r) {
@@ -442,7 +442,7 @@ function doRoutingTests(graphFlow, TestClass)
                     AddRoute({ UriPattern: "{controller}", Constraints: { controller: "^Schedule$" } })
                 ),
                 AddRoute({ UriPattern: "Home", Defaults: { controller: "Home" } }),
-                GetRouteDataFromUri("~/Home"),
+                GetRouteMatchFromUri("~/Home"),
                 writeError('log'),
                 logProps(),
                 test("fail 1st route constraint and match next", function(r) {
@@ -455,17 +455,17 @@ function doRoutingTests(graphFlow, TestClass)
                 CreateRouter(),
                 AddRoute({ UriPattern: "Home", Defaults: { controller: "Home" } }),
                 alternate(
-                    GetRouteDataFromUri("~/Home?num=20"),
-                    GetRouteDataFromUri("~/Home?num=20&name=masb"),
-                    GetRouteDataFromUri("~/Home?num=20&name=masb&ok"),
-                    GetRouteDataFromUri("~/Home?nums=30&name=masb&ok&nums=40"),
-                    GetRouteDataFromUri("~/Home?fname=miguel+angelo"),
-                    GetRouteDataFromUri("~/Home?ok="),
-                    GetRouteDataFromUri("~/Home?fname=miguel%20angelo"),
-                    GetRouteDataFromUri("~/Home?amp=%26"),
-                    GetRouteDataFromUri("~/Home?nums=30?name=masb&ok?nums=40"),
-                    GetRouteDataFromUri("~/Home?nums=30;40?name=masb&ok"),
-                    GetRouteDataFromUri("~/Home?eq=a=b&name=masb")
+                    GetRouteMatchFromUri("~/Home?num=20"),
+                    GetRouteMatchFromUri("~/Home?num=20&name=masb"),
+                    GetRouteMatchFromUri("~/Home?num=20&name=masb&ok"),
+                    GetRouteMatchFromUri("~/Home?nums=30&name=masb&ok&nums=40"),
+                    GetRouteMatchFromUri("~/Home?fname=miguel+angelo"),
+                    GetRouteMatchFromUri("~/Home?ok="),
+                    GetRouteMatchFromUri("~/Home?fname=miguel%20angelo"),
+                    GetRouteMatchFromUri("~/Home?amp=%26"),
+                    GetRouteMatchFromUri("~/Home?nums=30?name=masb&ok?nums=40"),
+                    GetRouteMatchFromUri("~/Home?nums=30;40?name=masb&ok"),
+                    GetRouteMatchFromUri("~/Home?eq=a=b&name=masb")
                 ),
                 writeError('log'),
                 logProps(),
@@ -486,8 +486,8 @@ function doRoutingTests(graphFlow, TestClass)
                 CreateRouter(),
                 AddRoute({ UriPattern: "Home", Defaults: { controller: "Home" } }),
                 alternate(
-                    GetRouteDataFromUri("~/Home?"),
-                    GetRouteDataFromUri("~/Home?&")
+                    GetRouteMatchFromUri("~/Home?"),
+                    GetRouteMatchFromUri("~/Home?&")
                 ),
                 writeError('log'),
                 logProps(),

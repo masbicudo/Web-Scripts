@@ -12,13 +12,13 @@
 
     function getUriOrRouteDataInfo(value) {
         if (typeof value == 'string') {
-            var routeData = this.getRouteDataFromURI(value);
-            var uri = this.getURIFromRouteData(routeData);
-            return Object.freeze({ routeData: routeData, uri: uri });
+            var routeMatch = this.matchRoute(value);
+            var uri = this.makeURI(routeMatch.data);
+            return Object.freeze({ routeData: routeMatch.data, uri: uri });
         }
         else if (typeof value == 'object') {
-            var uri = this.getURIFromRouteData(value);
-            var routeData = this.getRouteDataFromURI(uri);
+            var uri = this.makeURI(value);
+            var routeData = this.matchRoute(uri);
             return Object.freeze({ routeData: routeData, uri: uri });
         }
         throw new Error("Invalid value passed to 'getUriOrRouteDataInfo'");
@@ -38,8 +38,8 @@
                 return current;
             }).bind(this);
 
-            var base = this.getURIFromRouteData;
-            this.getURIFromRouteData = (function(target, opts) {
+            var base = this.makeURI;
+            this.makeURI = (function(target, opts) {
                 if (arguments.length == 2 && typeof target == 'object' && typeof opts == 'object')
                     return base.call(this, current.routeData, target, opts);
                 else if (arguments.length == 1 && typeof target == 'object')

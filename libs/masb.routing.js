@@ -530,6 +530,27 @@
             : v0+";"+(v1||"");
     }
 
+    function getQueryValues(uri) {
+        uri = isNullOrEmpty(uri) || isUndefined(uri) ? "" : ""+uri;
+        uri = uri.replace(new RegExp("^"+escapeRegExp(this.basePath), "g"), "~/");
+        var qs = uri.split(/[?&]/g);
+        uri = qs.splice(0,1)[0];
+        qs = qs.map(function(x){
+                return decodeURIComponent(x)
+                    .replace(/\+/g, " ")
+                    .replace('=', '&')
+                    .split('&');
+            });
+        var qv = {};
+        for (var it = 0; it < qs.length; it++) {
+            var kv = qs[it],
+                name = kv[0];
+            qv[name] = appendParam(qv[name], kv[1]);
+        }
+        
+        return { queryValues: qv, path: uri };
+    }
+
     function Router(opts) {
         if (!(this instanceof Router))
             throw new Error("Must call 'Router' with 'new' operator.");
@@ -545,8 +566,8 @@
 
         this.addRoute = addRoute.bind(this);
         this.getRoute = getRoute.bind(this);
-        this.getRouteDataFromURI = getRouteDataFromURI.bind(this);
-        this.getURIFromRouteData = getURIFromRouteData.bind(this);
+        this.matchRoute = matchRoute.bind(this);
+        this.makeURI = makeURI.bind(this);
         this.toVirtualPath = toVirtualPath.bind(this);
         this.toAppPath = toAppPath.bind(this);
         this.globalValues = globalValues || {};
@@ -570,7 +591,7 @@
             return null;
         }
 
-        function getURIFromRouteData(currentRouteData, targetRouteData, opts) {
+        function makeURI(currentRouteData, targetRouteData, opts) {
             opts = opts || {};
             for (var itR = 0; itR < _routes.length; itR++) {
                 var route = _routes[itR];
@@ -588,28 +609,7 @@
             throw new Error("No matching route to build the URI");
         }
 
-        function getQueryValues(uri) {
-            uri = isNullOrEmpty(uri) || isUndefined(uri) ? "" : ""+uri;
-            uri = uri.replace(new RegExp("^"+escapeRegExp(this.basePath), "g"), "~/");
-            var qs = uri.split(/[?&]/g);
-            uri = qs.splice(0,1)[0];
-            qs = qs.map(function(x){
-                    return decodeURIComponent(x)
-                        .replace(/\+/g, " ")
-                        .replace('=', '&')
-                        .split('&');
-                });
-            var qv = {};
-            for (var it = 0; it < qs.length; it++) {
-                var kv = qs[it],
-                    name = kv[0];
-                qv[name] = appendParam(qv[name], kv[1]);
-            }
-            
-            return { queryValues: qv, path: uri };
-        }
-
-        function getRouteDataFromURI(uri, opts) {
+        function matchRoute(uri, opts) {
             var details = opts && opts.verbose ? [] : null;
             var parts = getQueryValues.call(this, uri);
             // ASP.NET routing code (for reference): http://referencesource.microsoft.com/#System.Web/Routing/ParsedRoute.cs
