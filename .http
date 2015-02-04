@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<configuration host="localhost" port="1357" serializeResponses="false">
+    <onStart openInBrowser="/" />
+    <handlers>
+        <add type="HttpFileServer.FileIconHandler" />
+        <add type="HttpFileServer.ScriptFileHandler" />
+        <add type="HttpFileServer.FileBytesHandler" />
+        <add type="HttpFileServer.DirectoryHandler" />
+    </handlers>
+    <assemblies />
+    <packages />
+</configuration>
