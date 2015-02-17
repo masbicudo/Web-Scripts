@@ -1,37 +1,39 @@
-// Masb Routing    v0.2.1
-//
-//  This is responsible for routing, that is,
-//  extracting information from an URI so that
-//  an external agent can determine what to
-//  render next.
-//
-//  This will mimic the behaviour of ASP.NET routing with the following exceptions:
-//  1) when building patterns:
-//      - none yet
-//  2) when matching URI's:
-//      - pattern "{x}-{y}" matches '~/x-y-z/' as:
-//          Here:    x -> 'x';   y -> 'y-z'
-//          ASP.NET: x -> 'x-y'; y -> 'z'
-//      - pattern "{x?}-{y}" matches '~/---/' as:
-//          Here:    x -> no match (x = '' and y = '--', but x is a middle place-holder)
-//          ASP.NET: x -> '-'; y -> '-'
-//
-//  This will not:
-//  - change URI for single-page apps
-//  - request server data in any way
+/// Masb Routing    v0.2.1
+///
+///  This is responsible for routing, that is,
+///  extracting information from an URI so that
+///  an external agent can determine what to
+///  render next.
+///
+///  This will mimic the behaviour of ASP.NET routing with the following exceptions:
+///  1) when building patterns:
+///      - none yet
+///  2) when matching URI's:
+///      - pattern "{x}-{y}" matches '~/x-y-z/' as:
+///          Here:    x -> 'x';   y -> 'y-z'
+///          ASP.NET: x -> 'x-y'; y -> 'z'
+///      - pattern "{x?}-{y}" matches '~/---/' as:
+///          Here:    x -> no match (x = '' and y = '--', but x is a middle place-holder)
+///          ASP.NET: x -> '-'; y -> '-'
+///
+///  This will not:
+///  - change URI for single-page apps
+///  - request server data in any way
+///
+/// This router support mix-in functions, that can be used to add plug-ins into it.
+/// With plug-ins, anything is possible, including the above mentioned behaviours.
 
 (function() {
-    function extend(target, source) {
-        for (var k in source)
-            if (source.hasOwnProperty(k))
-                target[k] = source[k];
-        return target;
-    }
-    function remLine(str, num) {
-        var lines = str.split('\n');
-        lines.splice(num-1, 1);
-        return lines.join('\n');
-    }
+
+
+
+
+/*****************************************************************************************
+**                                                                                      **
+**    PROTOTYPES.                                                                       **
+**                                                                                      **
+*****************************************************************************************/
+
     function RouteError(type, message) {
         if (window.chrome) {
             var err = new Error();
@@ -42,7 +44,6 @@
         this.type = type;
     }
     var freeze = Object.freeze;
-    this.RouteError = RouteError;
     var types;
     RouteError.prototype = extend(Object.create(Error.prototype), {
         message: 'Route error.',
@@ -77,6 +78,28 @@
             return "Name: " + this.name;
         }
     };
+
+
+
+
+/*****************************************************************************************
+**                                                                                      **
+**    PRIVATE METHODS.                                                                  **
+**                                                                                      **
+*****************************************************************************************/
+
+    function extend(target, source) {
+        for (var k in source)
+            if (source.hasOwnProperty(k))
+                target[k] = source[k];
+        return target;
+    }
+
+    function remLine(str, num) {
+        var lines = str.split('\n');
+        lines.splice(num-1, 1);
+        return lines.join('\n');
+    }
 
     function getSegments(uriPattern, LiteralClass, PlaceHolderClass) {
         var segments = uriPattern && uriPattern.split('/').map(function (seg) {
@@ -256,7 +279,9 @@
 
         function PlaceHolder(name) {
             this.name = name;
-            this.isOptional = !!route.Defaults && route.Defaults.hasOwnProperty(name) && !isUndefined(route.Defaults[name]);
+            this.isOptional = !!route.Defaults
+                && route.Defaults.hasOwnProperty(name)
+                && !isUndefined(route.Defaults[name]);
             if (this.isOptional)
                 this.defaultValue = route.Defaults[name];
             this.isConstrained = constraints.hasOwnProperty(name);
@@ -449,14 +474,14 @@
                 else if (nc  && nt  && !nd) return null;
                 else if (!nc && ect && nd ) r1 = t;
                 else if (!nc && !nt && nd ) r1 = t;
-                else if (edc && nt  && !nd) { r1 = undefined; result.dataTokens[name] = d; }
+                else if (edc && nt  && !nd) { r1=undefined; result.dataTokens[name]=d; }
                 else if (!nc && nt  && !nd) return null;
-                else if (nc  && !nt && etd) { r1 = undefined; result.dataTokens[name] = d; }
+                else if (nc  && !nt && etd) { r1=undefined; result.dataTokens[name]=d; }
                 else if (nc  && !nt && !nd) return null;
-                else if (edc && ect && !nd) { r1 = undefined; result.dataTokens[name] = d; }
+                else if (edc && ect && !nd) { r1=undefined; result.dataTokens[name]=d; }
                 else if (!nc && ect && !nd) return null;
                 else if (edc && !nt && !nd) return null;
-                else if (!nc && !nt && etd) { r1 = undefined; result.dataTokens[name] = d; }
+                else if (!nc && !nt && etd) { r1=undefined; result.dataTokens[name]=d; }
                 else if (!nc && !nt && !nd) return null;
 
                 if (typeof r1 != 'undefined')
@@ -483,12 +508,15 @@
                 if (item instanceof PlaceHolderBase) {
                     var name = item.name,
                         constraint = route.Constraints && route.Constraints[name],
-                        def = route.Defaults && route.Defaults[name];
-                    var value = data.uriValues[name];
+                        def = route.Defaults && route.Defaults[name],
+                        value = data.uriValues[name];
 
+                    // !(A || B) <=> !A && !B
+                    // !(A && B) <=> !A || !B
                     if (typeof def != 'undefined')
-                        if (!(def == value || (def==null||def=="")&&(value==null||value=="")))
-                            segmentRequired = true;
+                        if (def != null && def != "" || value != null && value != "")
+                            if (def != value)
+                                segmentRequired = true;
 
                     if (!matchConstraint(constraint, value))
                         return null;
@@ -551,57 +579,50 @@
         return { queryValues: qv, path: uri };
     }
 
+    function toVirtualPath(path) {
+        path=""+path;
+        if (path.indexOf(this.basePath) == 0)
+            return path.substr(this.basePath.length);
+        return null;
+    }
+
+    function toAppPath(virtualPath) {
+        virtualPath=""+virtualPath;
+        if (virtualPath.indexOf("~/") == 0)
+            return this.basePath + virtualPath.substr(2);
+        return null;
+    }
+
+
+
+
+/*****************************************************************************************
+**                                                                                      **
+**    DEFINITION OF THE ROUTER OBJECT.                                                  **
+**                                                                                      **
+*****************************************************************************************/
+
     function Router(opts) {
         if (!(this instanceof Router))
             throw new Error("Must call 'Router' with 'new' operator.");
-        var routes = opts.routes,
-            globalValues = opts.globals,
-            basePath = opts.basePath,
-            mixins = opts.mixins || [];
+
+        // enclosed values for the following functions
         var _routes = [];
 
-        if (routes instanceof Array)
-            for (var itR = 0; itR < routes.length; itR++)
-                addRoute(routes[itR]);
-
-        this.addRoute = addRoute.bind(this);
-        this.getRoute = getRoute.bind(this);
-        this.matchRoute = matchRoute.bind(this);
-        this.makeURI = makeURI.bind(this);
-        this.toVirtualPath = toVirtualPath.bind(this);
-        this.toAppPath = toAppPath.bind(this);
-        this.globalValues = globalValues || {};
-        this.basePath =
-            isUndefined(basePath) ? "~/" :
-            isNullOrEmpty(basePath) ? "/" :
-            ensureStringLimits('/', '/', basePath);
-        this.mixins = mixins;
-
-        function toVirtualPath(path) {
-            path=""+path;
-            if (path.indexOf(this.basePath) == 0)
-                return path.substr(this.basePath.length);
-            return null;
-        }
-
-        function toAppPath(virtualPath) {
-            virtualPath=""+virtualPath;
-            if (virtualPath.indexOf("~/") == 0)
-                return this.basePath + virtualPath.substr(2);
-            return null;
-        }
-
+        // private function definitions, that depend on the above enclosed values
         function makeURI(currentRouteData, targetRouteData, opts) {
             opts = opts || {};
             for (var itR = 0; itR < _routes.length; itR++) {
                 var route = _routes[itR];
 
                 // getting data to use in the URI
-                var data = bindUriValues.call(this, route, currentRouteData, targetRouteData, this.globalValues);
+                var data = bindUriValues.call(
+                    this, route, currentRouteData, targetRouteData, this.globalValues);
 
                 // building URI with the data
                 var uri = null;
-                if (data) uri = buildUri.call(this, route, data, opts.virtual ? "~/" : this.basePath);
+                if (data) uri = buildUri.call(
+                    this, route, data, opts.virtual ? "~/" : this.basePath);
 
                 if (uri) return uri;
             }
@@ -612,12 +633,14 @@
         function matchRoute(uri, opts) {
             var details = opts && opts.verbose ? [] : null;
             var parts = getQueryValues.call(this, uri);
-            // ASP.NET routing code (for reference): http://referencesource.microsoft.com/#System.Web/Routing/ParsedRoute.cs
+            // ASP.NET routing code (for reference):
+            // http://referencesource.microsoft.com/#System.Web/Routing/ParsedRoute.cs
             for (var itR = 0; itR < _routes.length; itR++) {
                 var route = _routes[itR];
 
                 // Trying to match the route information with the given URI.
-                // Convert the URI pattern to a RegExp that can extract information from a real URI.
+                // Convert the URI pattern to a RegExp that can
+                // extract information from a real URI.
                 var segments = route.segments;
 
                 var segValues = route.match(parts.path);
@@ -662,24 +685,75 @@
         };
 
         function addRoute(name, route) {
-            if (typeof name !== 'string' && name != null || name === "" || /^\d+$/.test(name))
+            if (typeof name !== 'string'
+              && name != null || name === "" || /^\d+$/.test(name))
                 throw new Error("Invalid argument: route name is invalid");
             _routes.push(new Route(route));
             if (name)
                 _routes[name] = route;
+            // allow fluent route definitions
+            return this;
         };
 
         function getRoute(idOrName) {
             return _routes[idOrName];
         };
 
-        // applying the mix-ins...
-        // must be the last thing done before freezing
+        // values that will be used
+        var routes = opts.routes,
+            globalValues = opts.globals,
+            basePath = opts.basePath,
+            mixins = opts.mixins || [];
+
+        // adding routes
+        if (routes instanceof Array)
+            for (var itR = 0; itR < routes.length; itR++)
+                addRoute.call(this, routes[itR]);
+
+
+
+
+/*****************************************************************************************
+**                                                                                      **
+**    PUBLIC API OF THE ROUTER OBJECT.                                                  **
+**                                                                                      **
+*****************************************************************************************/
+
+         // METHODS
+        this.addRoute = addRoute.bind(this);
+        this.getRoute = getRoute.bind(this);
+        this.matchRoute = matchRoute.bind(this);
+        this.makeURI = makeURI.bind(this);
+        this.toVirtualPath = toVirtualPath.bind(this);
+        this.toAppPath = toAppPath.bind(this);
+        
+        // PROPERTIES
+        this.globalValues = globalValues || {};
+        this.basePath =
+            isUndefined(basePath) ? "~/" :
+            isNullOrEmpty(basePath) ? "/" :
+            ensureStringLimits('/', '/', basePath);
+        this.mixins = mixins;
+
+        // APPLYING THE MIX-INS
+        // Must be the last thing done before freezing.
         for (var it = 0; it < mixins.length; it++)
             mixins[it].call(this);
 
         freeze(this);
     }
 
-    return this.Router = Router;
+
+
+
+/*****************************************************************************************
+**                                                                                      **
+**    PUBLIC GLOBAL DEFINITIONS.                                                        **
+**                                                                                      **
+*****************************************************************************************/
+
+    this.RouteError = RouteError;
+    this.Router = Router;
+
+    return Router;
 })();

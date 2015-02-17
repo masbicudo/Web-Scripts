@@ -14,12 +14,18 @@
         if (typeof value == 'string') {
             var routeMatch = this.matchRoute(value);
             var uri = this.makeURI(routeMatch.data);
-            return Object.freeze({ routeData: routeMatch.data, dataTokens: routeMatch.tokens, uri: uri });
+            return Object.freeze({
+                routeData: routeMatch.data,
+                dataTokens: routeMatch.tokens,
+                uri: uri });
         }
         else if (typeof value == 'object') {
             var uri = this.makeURI(value);
             var routeMatch = this.matchRoute(uri);
-            return Object.freeze({ routeData: routeMatch.data, dataTokens: routeMatch.tokens, uri: uri });
+            return Object.freeze({
+                routeData: routeMatch.data,
+                dataTokens: routeMatch.tokens,
+                uri: uri });
         }
         throw new Error("Invalid value passed to 'getInfo'");
     }
