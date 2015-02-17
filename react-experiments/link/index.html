@@ -3,7 +3,6 @@
 <head>
     <meta charset="utf-8">
     <title>Link Component Experiment</title>
-    <link href="link.css" type="text/css" rel="stylesheet" />
 
     <!-- Routing -->
     <script src="../../libs/masb.routing.js" type="text/javascript"></script>
@@ -14,76 +13,33 @@
     <script src="../../packages/react-0.12.1/build/JSXTransformer.js"></script>
     <script src="../gearz.mixin.js"></script>
     <script src="link.jsx" type="text/jsx"></script>
+    <script src="pages.jsx" type="text/jsx"></script>
 </head>
 <body>
-    <h1>link.jsx</h1>
-    <h3>using external router (request using a router)</h3>
-    <div id="output1"></div>
-    <h3>using internal router (normal browser request)</h3>
-    <div id="output2"></div>
-    <script type="text/jsx">
-        var glb = {
-                link: {
-                    text: "Miguel",
-                    uri: "~/"
-                }
-            };
-
-        var router = new Router({
-                basePath: "react-experiments",
-                globals: { area: "" },
-                mixins: [routerMixins.location]
-            });
-        router.addRoute("with-id", {
-                UriPattern: "{controller}/{action}/{id}.html",
-                Constraints: { id: "^\\d+$" }
-            });
-        router.addRoute("normal", {
-                UriPattern: "{controller}/{action}.html"
-            });
-        router.addRoute("no-action", {
-                UriPattern: "{controller}.html"
-            });
-
-        router.setCurrentLocation(document.location.pathname);
-
-        var components = {
-                router: router
-            };
-
-        function processAjaxData(response, urlPath) {
-            document.getElementById("content").innerHTML = response.html;
-            document.title = response.pageTitle;
-            window.history.pushState({"html":response.html,"pageTitle":response.pageTitle},"", urlPath);
-        }
-
-        function onRoute(render) {
-                return function(e) {
-                    e.preventDefault();
-
-                    // decompose the URI to get route-data
-                    debugger;
-                    
-                    render();
-                };
-            }
-
-        function render1() {
+<div id="output"></div>
+<script type="text/jsx">
+    window.stores = {};
+    window.onpopstate = function(event) {
+        if (event.state) {
+            window.stores.viewData = event.state.viewData;
+            var Component = window[event.state.pageComponent];
+            if (Component){
                 React.render(
-                    <Link
-                        target={ { action: "about" } }
-                        router={components.router}
-                        onNavigate={ onRoute(render1) } >
-                        about page
-                    </Link>,
-                    document.getElementById("output1")
+                        <Component />,
+                        document.getElementById("output")
                 );
+                return;
             }
-        function render2() {
-            }
-
-        render1();
-        render2();
-    </script>
+        }
+        render();
+    };
+    function render() {
+        React.render(
+                <IndexPage />,
+                document.getElementById("output")
+        );
+    }
+    render();
+</script>
 </body>
 </html>
