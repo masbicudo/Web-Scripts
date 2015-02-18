@@ -219,6 +219,22 @@ function doAtomTests(graphFlow, TestClass)
     debugger;
     var temp1_1 = temp1.callAll();
     debugger;
+
+    var temp10 = sequence(
+            func(
+                sequence(
+                    alternate(
+                        tempFnNum(1),
+                        tempFnNum(2)
+                    ),
+                    tempFnAgg()
+                )
+            ),
+            alternate(
+                tempFnSum(),
+                tempFnMul()
+            )
+        );
     
     var someTest;
     var allTests = alternate(
