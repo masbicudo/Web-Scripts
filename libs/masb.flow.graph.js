@@ -1,10 +1,11 @@
-// Graph Flow v1.7.1    2016-02-20
+// Graph Flow v1.7.2    2016-02-20
 // Author: Miguel Angelo
 // Licence:
 //      Contact me to get a licence
 //          -- OR --
 //      Choose one of these open source licences: MIT
 // Versions:
+//  1.7.2   BUG: transformers cannot ever be inherited, but must be copies from alt-block to each alt (2016-02-20)
 //  1.7.1   Added transformers, changed catchCombinator into catchTransformer (2016-02-20)
 //  1.7.0   Added getCallers to get a function for each alternative (2016-02-19)
 //  1.6.0   Catch combinator (2015-01-27)
@@ -19,7 +20,7 @@
 "use strict";
 function createGraphFlow() {
     const info = Object.freeze({
-        version: { major:1, minor:7, patch:1, release: new Date(2016, 02, 20) },
+        version: { major:1, minor:7, patch:2, release: new Date(2016,  2, 20) },
         created: new Date(2014, 11, 25),
         authors: ["Miguel Angelo"]
     });
@@ -121,7 +122,6 @@ function createGraphFlow() {
     function doTransform(fs) {
         var deftransfs = this.defaultTransformers;
         return fs.map(function(f) {
-            if(f.transformers)debugger;
             var transfs = Array.isArray(f.transformers)       ? deftransfs.concat(f.transformers)
                         : typeof f.transformers == 'function' ? deftransfs.concat(f.transformers)
                         :                                       deftransfs;
@@ -142,10 +142,10 @@ function createGraphFlow() {
     }
 
     function canInheritProperty(dst, src, prop) {
-        if(prop=='transformers')debugger;
         return !dst.hasOwnProperty(prop)
             && src.hasOwnProperty(prop)
-            && (!src[prop] || !src[prop].notInheritable);
+            && (!src[prop] || !src[prop].notInheritable)
+            && prop!=="transformers";
     }
     function defaultInherit(gof, g, fs) {
         // `gof` inherits properties owned by `g`, if `gof` does not
@@ -166,6 +166,26 @@ function createGraphFlow() {
             var ErrorClass = fn.Error || mc&&mc.Error || this.Error || gfError;
             return new ErrorClass(ex, ctx);
         }
+    }
+
+    function alternativeInherit(alternativeFn, mc) {
+        // Each alternative inside of an alternating-block
+        // will receive the properties applyed to the block
+        // according to the inheritance laws.
+        defaultInherit.call(this, alternativeFn, mc);
+        
+        // Each one, will also receive a copy of the transformers.
+        // This happens because transformers are not inheritable.
+        // Take a look at `canInheritProperty`.
+        if (typeof alternativeFn.transformers == 'function')
+            alternativeFn.transformers = [alternativeFn.transformers];
+        else if (typeof alternativeFn.transformers == 'undefined')
+            alternativeFn.transformers = [];
+        
+        if (Array.isArray(alternativeFn.transformers))
+            Array.prototype.push.apply(alternativeFn.transformers, mc.transformers);
+        else
+            throw new Error("Cannot set function transformers.");
     }
 
 /***************
@@ -377,7 +397,7 @@ function createGraphFlow() {
         var funcs = argumentsToArray(arguments);
         return combineMinMax(funcs, 1, funcs.length, nextFilter);
     }
-
+    
     function alternativesCombinator(ffss) {
         ffss = distinct(ffss);
         var fn = function MultiCombinator() {
@@ -479,16 +499,23 @@ function createGraphFlow() {
                 });
         };
         fn.getCallers.notInheritable = true;
+        var werePropsCopied = false;
         fn.funcs = function() {
-            var _this = this;
-            ffss.forEach(function(fs) {
-                if (Array.isArray(fs))
-                    fs.forEach(function(f) {
-                        defaultInherit.call(GF, f, _this);
-                    });
-                else
-                    defaultInherit.call(GF, fs, _this);
-            });
+            /// Gets the functions inside this alternating-block,
+            /// and copies all the properties of the block to each
+            /// of the alternatives.
+            if (!werePropsCopied) {
+                werePropsCopied = true;
+                var _this = this;
+                ffss.forEach(function(fs) {
+                    if (Array.isArray(fs))
+                        fs.forEach(function(f) {
+                            alternativeInherit.call(GF, f, _this);
+                        });
+                    else
+                        alternativeInherit.call(GF, fs, _this);
+                });
+            }
             return ffss;
         };
         fn.funcs.notInheritable = true;
