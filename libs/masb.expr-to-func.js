@@ -54,7 +54,7 @@ function getVarNames(expr, hintObj) {
             ]));
 
         try {
-            func(hintObj);
+            func();
             return names;
         }
         catch (e) {

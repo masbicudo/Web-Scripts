@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<configuration host="localhost" port="1358" httpRoot="..\">
+<configuration host="localhost" port="1358" httpRoot="..">
     <onStart openInBrowser="/tests.routing/routing-tests.html" />
     <handlers>
         <add type="HttpFileServer.FileIconHandler" />
