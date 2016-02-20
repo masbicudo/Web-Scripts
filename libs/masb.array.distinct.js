@@ -1,3 +1,4 @@
+"use strict";
 // references:
 //  - http://stackoverflow.com/a/16065720/195417
 (function(plugins) {

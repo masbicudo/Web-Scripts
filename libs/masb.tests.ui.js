@@ -1,5 +1,6 @@
 // Tests Framewok UI v1.0.0    2014-12-12
 //  author: Miguel Angelo
+"use strict";
 function fnTestTableBuilder(graphFlow, TestClass) {
 
     function sumator(a,b) {

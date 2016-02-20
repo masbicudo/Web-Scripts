@@ -7,7 +7,7 @@
 //   - location: allows the router to store the current URI,
 //          and use it to get the current route data when needed.
 //  
-
+"use strict";
 (function() {
 
     function getInfo(value) {

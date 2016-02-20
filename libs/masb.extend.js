@@ -1,3 +1,4 @@
+"use strict";
 function extend(o) {
     for (var it = 1; it < arguments.length; it++) {
         var arg = arguments[it];

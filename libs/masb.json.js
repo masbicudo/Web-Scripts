@@ -1,3 +1,4 @@
+"use strict";
 (function() {
     var rgxStrToJson = /[\n\r\t\0\\\"]/g,
         objStrToJson = {"\r":"\\r","\n":"\\n","\t":"\\t","\0":"\\0","\\":"\\\\",'"':'\\"'};

@@ -3,6 +3,7 @@
 //  require: masb.atom.v0.0.1.js
 //  require: masb.flow.graph.v1.5.0.js
 //  require: masb.testes.v1.0.0.js
+"use strict";
 function doAtomTests(graphFlow, TestClass)
 {
     var tester = new TestClass(),

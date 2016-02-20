@@ -6,6 +6,7 @@
 // v1.0.2 - #2015-01-30#
 //          added test counting
 // v1.0.1 - corrected bug when displaying errors of type matching /.+Error$/
+"use strict";
 function sumator(a,b) {
     return a + b;
 }

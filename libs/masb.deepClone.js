@@ -1,3 +1,4 @@
+"use strict";
 // Deep cloning JSON or data objects 
 // that may contain unknown object types
 // frozen objects and objects that

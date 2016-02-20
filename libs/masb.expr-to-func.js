@@ -1,4 +1,5 @@
-﻿/**
+﻿"use strict";
+/**
  * Creates a function that can extract the name of a variable from a ReferenceError.
  * @returns {function}
  *      A function that can extract the name of a variable from a ReferenceError .

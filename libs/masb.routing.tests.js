@@ -4,6 +4,7 @@
 //  require: masb.flow.graph.v1.5.0.js
 //  require: masb.tests.v1.0.0.js
 //  require: masb.tests.ex.v1.0.0.js
+"use strict";
 function doRoutingTests(graphFlow, TestClass)
 {
     var tester = new TestClass(),

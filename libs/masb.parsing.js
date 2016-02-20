@@ -1,3 +1,4 @@
+"use strict";
 function Compiler() {
     var docs = [],
         grams = {};

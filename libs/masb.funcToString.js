@@ -1,3 +1,4 @@
+"use strict";
 // Function to String
 function funcToString(fn, dblSpc) {
     var fnStr = fn.toString();

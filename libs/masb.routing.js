@@ -27,6 +27,7 @@
 ///
 /// This router support mix-in functions, that can be used to add plug-ins into it.
 /// With plug-ins, anything is possible, including the above mentioned behaviours.
+"use strict";
 
 (function() {
 

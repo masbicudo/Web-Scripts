@@ -1,3 +1,4 @@
+"use strict";
 var lib = resource({ ref: "../libs/lib.js", type: "text/javascript" });
 
 // Reads the file data to the memory if not cached already.

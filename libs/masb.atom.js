@@ -1,5 +1,6 @@
 // Atom v0.0.1
 // Author: Miguel Angelo
+"use strict";
 
 if (!Array.isArray) {
     Array.isArray = function (obj) {

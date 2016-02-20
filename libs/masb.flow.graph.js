@@ -15,6 +15,7 @@
 //  1.2.0   Added a context to the functions (passed as `this`), added `createContext` function
 //  1.1.0   Added NoOp and End functions, interned some others, ability to use null as NoOp
 //  1.0.0   Initial version
+"use strict";
 function createGraphFlow() {
     const info = {
         version: { major:1, minor:7, patch:0, release: new Date(2016, 11, 30) },

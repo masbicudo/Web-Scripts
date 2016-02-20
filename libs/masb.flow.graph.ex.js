@@ -1,5 +1,6 @@
 // Graph-Flow Extensions v1.0.0    2014-11-27
 //  author: Miguel Angelo
+"use strict";
 function gfexEnableMarkers(graphFlow) {
 
     var oldMarker = graphFlow.marker,

@@ -1,3 +1,4 @@
+"use strict";
 /// <summary>
 /// Longest common subsequence.
 /// </summary>

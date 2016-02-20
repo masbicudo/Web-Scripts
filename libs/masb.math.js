@@ -1,3 +1,4 @@
+"use strict";
 (function() {
     this.vec2 = function vec2(x, y) {
         return new Vector2(x, y);

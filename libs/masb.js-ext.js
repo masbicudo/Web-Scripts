@@ -1,3 +1,4 @@
+"use strict";
 (function(p) {
     var test = p.test,
         exec = p.exec;
