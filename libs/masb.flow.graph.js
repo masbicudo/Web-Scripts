@@ -1,12 +1,13 @@
-// Graph Flow v1.6.0    2015-01-27
+// Graph Flow v1.7.0    2016-02-19
 // Author: Miguel Angelo
 // Licence:
 //      Contact me to get a licence
 //          -- OR --
 //      Choose one of these open source licences: none
 // Versions:
-//  1.6.0   Catch combinator
-//  1.5.0   Better flow syntax: sequence, alternate, combine
+//  1.7.0   getCallers to get a function for each alternative (2016-02-19)
+//  1.6.0   Catch combinator (2015-01-27)
+//  1.5.0   Better flow syntax: sequence, alternate, combine (2014-11-30)
 //  1.4.1   BUG: the same NoOp function cannot be used in multiple places, it must be replicated
 //  1.4.0   Extensibility: inherit - allows the control of `gof` inherited properties from `g` and `fs`
 //  1.3.0   Extensibility: combinator, executor and context-creator
@@ -16,7 +17,7 @@
 //  1.0.0   Initial version
 function createGraphFlow() {
     const info = {
-        version: { major:1, minor:5, patch:0, release: new Date(2014, 11, 30) },
+        version: { major:1, minor:7, patch:0, release: new Date(2016, 11, 30) },
         created: new Date(2014, 11, 25),
         authors: ["Miguel Angelo"]
     };
@@ -28,6 +29,7 @@ function createGraphFlow() {
     GF.NoOp = NoOp;
     GF.End = finalFunc(End);
     GF.finalFunc = finalFunc;
+    GF.defaultTransformer = identity;
     GF.defaultCombinator = valueCombinator;
     GF.defaultInherit = defaultInherit;
     GF.createContext = createContext;
@@ -41,9 +43,12 @@ function createGraphFlow() {
         catchCombinator: catchCombinator,
         funcCombinator: funcCombinator
     };
+    GF.transformers = {
+        identityTransformer: identity,
+    };
     var push = Array.prototype.push;
     function GraphFlow() {
-        var ffss = distinct(normalize(argumentsToArray(arguments)));
+        var ffss = normalize(argumentsToArray(arguments));
         return alternativesCombinator(ffss);
     }
     function gfError(value, ctx) {
@@ -104,11 +109,13 @@ function createGraphFlow() {
     function argumentsToArray(args) {
         return [].slice.call(args);
     }
+
     function identity(a) {
         return a;
     }
+
     function valueCombinator(g, argsFn, fs) {
-        function GoF() {
+        function GoF(/* arguments */) {
             var args = argsFn.apply(this, arguments);
             return g.apply(this, args);
         };
@@ -117,6 +124,20 @@ function createGraphFlow() {
         return GoF;
     }
     valueCombinator.procArgs = identity;
+
+    function doTransform(fs) {
+        var transf = this.defaultTransformer || identity;
+        if (typeof transf != 'function')
+            throw new Error("Transformer must be a function.");
+        return fs.map(function(f){
+            var f2 = transf(f) || f;
+            if (f2 != f) {
+                var inherit = f.inherit || GF.defaultInherit;
+                if (inherit) inherit.call(GF, f2, f, fs);
+            }
+            return f2;
+        });
+    }
 
     // BUG: catchCombinator should not be a combinator...
     // When there is no functions before the function marked with a combinator
@@ -214,7 +235,6 @@ function createGraphFlow() {
         }
     }
 
-
     // FLOW FUNCTIONS
     //  These function are used to construct the flow of code.
     //  Each one accepts multiple arguments, all being functions.
@@ -306,10 +326,18 @@ function createGraphFlow() {
         ffss = distinct(ffss);
         var fn = function MultiCombinator() {
             var gs = distinct(normalize(argumentsToArray(arguments)));
+            gs = doTransform.call(GF, gs);
             var gofs = ffss
                 .map(function(ffs) {
                     var fs = normalize(Array.isArray(ffs) ? ffs : [ffs]);
 
+                    fs = doTransform.call(GF, fs);
+
+                    // A final function is one that cannot be combined with others.
+                    // For example, a test method that is intended to be the last
+                    // thing to execute, can be marked with the `isFinal` flag.
+                    // When composing the function, if the tester places something after
+                    // the test function, an error will happen.
                     var someIsFinal = fs.some(function(f) { return f.isFinalFunc; });
                     if (someIsFinal) {
                         if (fs.length == 1)
@@ -328,6 +356,7 @@ function createGraphFlow() {
                     //          () => fn(a(),b(),c(),... z()))
                     var result = gs
                         .map(function(g) {
+
                             function gargsFn() {
                                 var _this = this,
                                     fargs = arguments,
@@ -344,7 +373,7 @@ function createGraphFlow() {
                                 gof = combinator.call(GF, g, gargsFn, fs);
                             if (gof) {
                                 var inherit = gof.inherit || GF.defaultInherit;
-                                inherit.call(GF, gof, g, fs);
+                                if (inherit) inherit.call(GF, gof, g, fs);
                             }
 
                             return gof;
@@ -356,7 +385,11 @@ function createGraphFlow() {
                 .reduce(concat, []);
             return alternativesCombinator(gofs);
         };
-        fn.callAll = function() {
+        fn.callAll = function(/* arguments */) {
+            return this.getCallers.apply(this, arguments).map(function(c){return c();});
+        };
+        fn.callAll.notInheritable = true;
+        fn.getCallers = function(/* arguments */) {
             var _this = this,
                 ctxCreator = this.createContext || GF&&GF.createContext || createContext,
                 exec = this.executor || GF&&GF.executor || executor,
@@ -364,15 +397,32 @@ function createGraphFlow() {
             flattenArgs(args, argumentsToArray(arguments));
             return ffss
                 .filter(function(fs){return typeof fs != 'undefined';})
-                .map(function(fs) {
-                    var ctx = (fs.createContext || ctxCreator).call(GF, fs, _this),
-                        args2 = fn && fn.combinator && fn.combinator.procArgs
-                            ? fn.combinator.procArgs(args)
-                            : args;
-                    return (fs.executor || exec).call(GF, fs, ctx, args2, _this);
+                .map(function(ffs) {
+
+                    // Should we keep the following line?
+                    //var fs = normalize(Array.isArray(ffs) ? ffs : [ffs]);
+                    //var fs = Array.isArray(ffs) ? ffs : [ffs];
+
+                    var fs = doTransform.call(GF, [ffs])[0];
+
+                    execFn.contextCreator = function() {
+                        return (fs.createContext || ctxCreator).call(GF, fs, _this);
+                    }
+                    function execFn(ctx) {
+                        var args2 = fn && fn.combinator && fn.combinator.procArgs
+                                ? fn.combinator.procArgs(args)
+                                : args;
+
+                        if (arguments.length == 0)
+                            ctx = execFn.contextCreator();
+
+                        return (fs.executor || exec).call(GF, fs, ctx, args2, _this);
+                    };
+                    return Object.freeze(execFn);
+
                 });
         };
-        fn.callAll.notInheritable = true;
+        fn.getCallers.notInheritable = true;
         fn.funcs = function() {
             var _this = this;
             ffss.forEach(function(fs) {
