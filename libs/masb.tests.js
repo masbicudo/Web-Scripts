@@ -33,6 +33,42 @@ function createTestClass(graphFlow) {
     }
 
     Tests.prototype = {
+        
+        
+        setupGraphFlow: function () {
+
+            var oldDefaultTransformer = graphFlow.defaultTransformer;
+
+            function testTransformer(f) {
+                if (f.hasOwnProperty('testFn') || f.name == "GoF" || f.name == "GoF_catch" || f.name == "NoOp")
+                    return f;
+                (window.lista = window.lista || []).push(f);
+                function f2(/* arguments */) {
+                    // Here `this` is the context of test that is running.
+                    // The context contains information about the test.
+                    // If `isTestEnabled` then we run the inner function.
+                    // If not `isTestEnabled` the caller wants only the metadata about the test.
+                    if (this.isTestEnabled) {
+                        return f.apply(this, arguments);
+                    }
+                };
+                if (f.hasOwnProperty('inherit'))
+                    f2.inherit = f.inherit;
+                return f2;
+            }
+            
+            graphFlow.defaultTransformer = testTransformer;
+    
+            return {
+                dispose: function() {
+                    if (graphFlow.defaultTransformer !== testTransformer)
+                        throw new Error("Cannot disable markers, because other layers were added over it.");
+                    graphFlow.defaultTransformer = oldDefaultTransformer;
+                }
+            };
+        },
+        
+        
         test: function(testName, func) {
                 if (this.tests.hasOwnProperty(testName))
                     throw new Error("Cannot create two tests with the same name: '"+testName+"'.");
@@ -47,7 +83,9 @@ function createTestClass(graphFlow) {
                     function(fn, ctx, args) {
                         ctx.testFn = fn.testFn;
                         ctx.testName = fn.testName;
-                        return this.executor(fn, ctx, args);
+                        if (ctx.isTestEnabled)
+                            return this.executor(fn, ctx, args);
+                        return this.executor(function(){this.step("Run the test!");}, ctx, args);
                     }
                 return graphFlow.finalFunc(func2);
             },

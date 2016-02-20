@@ -1,6 +1,10 @@
-// Tests Framewok JSX-UI v1.0.2    2015-01-30
+// Tests Framewok JSX-UI v1.0.3    2016-02-19
 //  author: Miguel Angelo
-// v1.0.2 - added test counting
+// v1.0.3 - #2016-02-19#
+//          added options not to run test on start (localstorage)
+//          added button to run each test individually
+// v1.0.2 - #2015-01-30#
+//          added test counting
 // v1.0.1 - corrected bug when displaying errors of type matching /.+Error$/
 function sumator(a,b) {
     return a + b;
@@ -15,9 +19,12 @@ function joiner(sep) {
 var HeaderDetailsBox = React.createClass({
         render: function() {
                 return (
-                    <pre>
-                        {this.props.data.fnStr}
-                    </pre> );
+                    <div>
+                        <pre>
+                            {this.props.data.fnStr}
+                        </pre>
+                        <button onMouseDown={(e)=>{this.props.onRun();}}>run</button>
+                    </div>);
             }
     });
 
@@ -112,6 +119,9 @@ var DataDetailsBox = React.createClass({
                         </div>);
                 }
 
+                rows.push(
+                        <button onMouseDown={(e)=>{this.props.onRun();}}>run</button>
+                    );
                 cols.push(
                     <span className='vert-section'>
                         {rows}
@@ -125,45 +135,61 @@ var DataDetailsBox = React.createClass({
             }
     });
 
-function BuildTestGroups(testData) {
+function BuildItemData(fn, doTests) {
+    var ctx = fn.contextCreator();
+    ctx.isTestEnabled = doTests;
+    var t = fn(ctx);
+
+    var r = {
+        fn: fn,
+
+        result: t.value instanceof Error
+                    ? { name: t.value.name,
+                        message: t.value.message,
+                        stack: t.value.stack }
+                : t.value && t.value.constructor == Object
+                    ? JSON.stringify(t.value)
+                    : t.value,
+
+        steps: t.ctx.steps,
+        checkpoints: t.ctx.checkpoints,
+        messages: t.ctx.messages,
+        isError: t instanceof graphFlow.Error,
+
+        cpErrors: t.ctx.checkpoints
+            .map(function(chk) {
+                    return chk.error ? 1 : 0;
+                })
+            .reduce(sumator, 0),
+
+        errors: t.ctx.countMessages('error'),
+        warns: t.ctx.countMessages('warn'),
+        infos: t.ctx.countMessages('info')
+    };
+    return {r:r, t:t};
+}
+
+function BuildTestGroups(testFunctions, doTests) {
     var testsGrouped = {};
     var groups = [];
-    for(var itR = 0; itR < testData.length; itR++) {
-        var t = testData[itR],
+    for(var itR = 0; itR < testFunctions.length; itR++) {
+
+        var fn = testFunctions[itR];
+        var rt = BuildItemData(fn, doTests);
+        var r = rt.r, t = rt.t;
+
+        var
             testName = t.ctx.testName || "Run w/o exceptions",
             g0 = testsGrouped[testName],
-            g = g0 || [],
-            r = {
-                result: t.value instanceof Error
-                            ? { name: t.value.name,
-                                message: t.value.message,
-                                stack: t.value.stack }
-                        : t.value && t.value.constructor == Object
-                            ? JSON.stringify(t.value)
-                            : t.value,
+            g = g0 || [];
 
-                steps: t.ctx.steps,
-                checkpoints: t.ctx.checkpoints,
-                messages: t.ctx.messages,
-                isError: t instanceof graphFlow.Error,
-
-                cpErrors: t.ctx.checkpoints
-                    .map(function(chk) {
-                            return chk.error ? 1 : 0;
-                        })
-                    .reduce(sumator, 0),
-
-                errors: t.ctx.countMessages('error'),
-                warns: t.ctx.countMessages('warn'),
-                infos: t.ctx.countMessages('info')
-            };
         if (!g0) {
             groups.push(g);
             testsGrouped[g.testName = testName] = g;
             g.testFn = t.ctx.testFn;
         }
         g.errors = (g.errors || 0) + (r.isError || r.cpErrors || r.errors ? 1 : 0);
-        g.push(r);
+        g.push(rt);
     }
 
     groups = groups.sort(function(a,b){
@@ -191,17 +217,24 @@ var TestHeader = React.createClass({
                         fn && fn(e, detailsHeader);
                     };
                 return (
-                    <th data-details={JSON.stringify(detailsHeader)} onMouseDown={onMouseDown}>
+                    <th onMouseDown={onMouseDown}>
                         {group.testName}
                     </th>
                     );
             }
     });
 
-var TestData = React.createClass({
+var TestItem = React.createClass({
+        getInitialState: function() {
+            return {};
+        },
         render: function() {
                 var _this = this;
-                var r = this.props.r,
+                var doTests = this.props.doTests;
+                if (typeof this.state.doTests != 'undefined')
+                    doTests = this.state.doTests;
+                var rt = this.props.rt;
+                var r = this.state.r || rt.r,
                     totalErrors = r.cpErrors + r.errors + (r.isError?1:0),
                     style = {
                         "backgroundColor": (
@@ -209,6 +242,7 @@ var TestData = React.createClass({
                             totalErrors ?   '#fdb' :
                             r.warns ?       '#ffb' :
                             r.infos ?       '#bfd' :
+                            !doTests ?      '#dde' :
                                             '#cfb')
                         },
                     iconClassName = "icon icon-" + (
@@ -221,14 +255,24 @@ var TestData = React.createClass({
                         totalErrors ?   'err' :
                         r.warns ?       'wrn' :
                         r.infos ?       'OK' :
+                        !doTests ?      'run' :
                                         'OK',
                     details = {type:'test-run', run: r},
                     onMouseDown = function(e) {
-                        var fn = _this.props && _this.props.onShowDetailsBox;
-                        fn && fn(e, details);
+                        function runTestAgain(){
+                            var newRT = BuildItemData(rt.r.fn, true);
+                            _this.setState({r: newRT.r, doTests: true});
+                        }
+                        if (doTests) {
+                            var fn = _this.props && _this.props.onShowDetailsBox;
+                            fn && fn(e, details, runTestAgain);
+                        }
+                        else {
+                            runTestAgain();
+                        }
                     };
                 return (
-                    <td style={style} data-details={JSON.stringify(details)} onMouseDown={onMouseDown}>
+                    <td style={style} onMouseDown={onMouseDown}>
                         {text}
                         <span className={iconClassName}>
                             {totalErrors||r.warns||r.infos}
@@ -240,8 +284,9 @@ var TestData = React.createClass({
 
 var TestTable = React.createClass({
         render: function() {
-                var testData = this.props.testData,
-                    groups = BuildTestGroups(testData);
+                var testFunctions = this.props.testFunctions,
+                    doTests = this.props.doTests,
+                    groups = BuildTestGroups(testFunctions, doTests);
                 return (
                     <table>
                         {groups.map(function(group) {
@@ -254,17 +299,7 @@ var TestTable = React.createClass({
                                     };
 
                             return (
-                                <tr key={group.testName}>
-                                
-                                    <TestHeader group={group} onShowDetailsBox={ShowDetailsBox} />
-                                    
-                                    {group.map(function(r, idx) {
-                                        return (
-                                            <TestData key={idx} r={r}
-                                                onShowDetailsBox={ShowDetailsBox} />
-                                            );
-                                    })}
-                                </tr>
+                                <TestRow key={group.testName} group={group} doTests={doTests} />
                                 );
                         })}
                     </table>
@@ -272,20 +307,82 @@ var TestTable = React.createClass({
             }
     });
 
-var TestTables = React.createClass({
+var TestRow = React.createClass({
+        getInitialState: function() {
+            return {};
+        },
         render: function() {
-                var testDataArray = this.props.testDataArray,
+                var doTests = this.state.doTests || this.props.doTests,
+                    group = this.state.group || this.props.group;
+                var _this = this;
+                return (
+                    <tr key={group.testName}>
+                    
+                        <TestHeader group={group} onShowDetailsBox={e => {
+                        
+                            function runGroupTestsAgain(){
+                                var newGroup = [];
+                                for(var k in group)
+                                    if(group.hasOwnProperty(k))
+                                        newGroup[k] = group[k];
+                            for (var i = 0; i<newGroup.length; i++)
+                                newGroup[i] = BuildItemData(newGroup[i].r.fn, true)
+                                _this.setState({group: newGroup, doTests: true});
+                            };
+
+                            ShowDetailsBox(e, {type: 'test-header', fnStr: group.testFn.toString()}, runGroupTestsAgain);
+                            
+                        }} />
+                        
+                        {group.map(function(rt, idx) {
+                            return (
+                                <TestItem
+                                    key={idx}
+                                    rt={rt}
+                                    onShowDetailsBox={ShowDetailsBox}
+                                    doTests={doTests}
+                                />
+                                );
+                        })}
+                    </tr>
+                    );
+            }
+    });
+
+var TestTables = React.createClass({
+        getInitialState: function() {
+            return {childDoTests:[]};
+        },
+        render: function() {
+                var groupedTestFunctions = this.props.groupedTestFunctions,
+                    doTests = this.state.doTests || this.props.doTests,
                     children = [];
+                var _this = this;
 
                 children.push(<div className="total-count">Total tests:&nbsp;
-                        {testDataArray.map(function(s){return s.length;}).reduce(sumator, 0)}
+                        {groupedTestFunctions.map(function(s){return s.length;}).reduce(sumator, 0)}
+                        &nbsp;
+                        <button onClick={(e)=>{this.setState({doTests:true});}}>run all</button>
                     </div>);
-                for (var it = 0; it < testDataArray.length; it++) {
-                    if (testDataArray.length > 1)
+                for (var it = 0; it < groupedTestFunctions.length; it++) {
+                    var eachDoTests = doTests || this.state.childDoTests[it];
+                    var btn = (it) => {
+                            var arr = [].slice.call(_this.state.childDoTests);
+                            arr[it] = true;
+                            return (<button onClick={(e)=>{this.setState({childDoTests:arr});}}>run</button>);
+                        };
+                    if (groupedTestFunctions.length > 1)
                         children.push(<h3 key={"h3-"+it+1}>test set #{it+1}&nbsp;
-                                <span className="test-count">(tests: {testDataArray[it].length})</span>
+                                <span className="test-count">(tests: {groupedTestFunctions[it].length})</span>
+                                &nbsp;
+                                {btn(it)}
                             </h3>);
-                    children.push(<TestTable testData={testDataArray[it]} key={"tbl-"+it+1} />);
+                    children.push(
+                        <TestTable
+                            key={"tbl-"+it+1}
+                            testFunctions={groupedTestFunctions[it]}
+                            doTests={eachDoTests}
+                        />);
                 }
 
                 return (
@@ -296,27 +393,26 @@ var TestTables = React.createClass({
             }
     });
 
-function ShowDetailsBox(e) {
+function ShowDetailsBox(e, data, runTestFn) {
     e.stopPropagation();
     var nodeWithData = e.target;
-    while (nodeWithData && !(data = nodeWithData.getAttribute("data-details")))
-        nodeWithData = nodeWithData.parentNode;
+    
     if (ShowDetailsBox.lastClicked === nodeWithData) {
         HideDetailsBox(e);
         return;
     }
     ShowDetailsBox.lastClicked = nodeWithData;
-    var data = JSON.parse(data);
     var details = document.getElementById('details');
+
     if (data.type === 'test-header') {
         React.render(
-            <HeaderDetailsBox data={data} />,
+            <HeaderDetailsBox data={data} onRun={runTestFn} />,
             details
         );
     }
     else if (data.type === 'test-run') {
         React.render(
-            <DataDetailsBox data={data} />,
+            <DataDetailsBox data={data} onRun={runTestFn} />,
             details
         );
     }
@@ -337,10 +433,10 @@ function HideDetailsBox(e) {
     details.style.visibility = "hidden";
 }
 
-function BuildTestTables(testDataArray, document, output, details) {
+function BuildTestTables(groupedTestFunctions, document, output, details, doTests) {
 
     React.render(
-        <TestTables testDataArray={testDataArray} />,
+        <TestTables groupedTestFunctions={groupedTestFunctions} doTests={doTests} />,
         output
     );
 

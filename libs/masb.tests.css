@@ -15,6 +15,7 @@ td {
     border: 1px solid gray;
     padding: 4px;
     text-align: center;
+    position: relative;
 }
 
 td, th {
@@ -94,9 +95,9 @@ pre {
     float: right;
     border-radius: 0 0 0 6px;
     float: right;
-    top: -4px;
-    left: 4px;
-    position: relative;
+    top: 0;
+    right: 0;
+    position: absolute;
     box-sizing: border-box;
     --text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
     --box-shadow: inset 1px 1px 2px -1px rgba(0,0,0,0.5);
