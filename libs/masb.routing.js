@@ -1,4 +1,9 @@
-/// Masb Routing    v0.2.1
+/// MASB-Router v0.2.3
+///
+///  Name: MASB-Router
+///  Version: 0.2.3
+///  Author: Miguel Angelo <masbicudo@gmail.com>
+///  License: MIT
 ///
 ///  This is responsible for routing, that is,
 ///  extracting information from an URI so that
@@ -92,6 +97,15 @@
         for (var k in source)
             if (source.hasOwnProperty(k))
                 target[k] = source[k];
+        return target;
+    }
+
+    function extendDefined(target, source) {
+        if (source)
+            for (var k in source)
+                if (source.hasOwnProperty(k))
+                    if (typeof source[k] != 'undefined')
+                        target[k] = source[k];
         return target;
     }
 
@@ -559,7 +573,9 @@
     }
 
     function getQueryValues(uri) {
-        uri = isNullOrEmpty(uri) || isUndefined(uri) ? "" : ""+uri;
+        if (isNullOrEmpty(uri) || isUndefined(uri))
+            throw new Error("Uri cannot be null nor undefined.");
+        uri = ""+uri;
         uri = uri.replace(new RegExp("^"+escapeRegExp(this.basePath), "g"), "~/");
         var qs = uri.split(/[?&]/g);
         uri = qs.splice(0,1)[0];
@@ -660,23 +676,14 @@
 
                 // Copy route data to the resulting object.
                 // Copying `DataTokens` to the tokens variable.
-                if (route.DataTokens)
-                    for (var kt in route.DataTokens)
-                        t[kt] = route.DataTokens[kt];
+                extendDefined(t, route.DataTokens);
 
                 // Copying the default values to the used values,
                 // then overriding them with query values,
                 // and finally overriding them with route data.
-                if (route.Defaults)
-                    for (var kd in route.Defaults)
-                        r[kd] = route.Defaults[kd];
-
-                if (parts.queryValues)
-                    for (var kt in parts.queryValues)
-                        r[kt] = parts.queryValues[kt];
-
-                for (var kv in values)
-                    r[kv] = values[kv];
+                extendDefined(r, route.Defaults);
+                extendDefined(r, parts.queryValues);
+                extendDefined(r, values);
 
                 return new RouteMatch(r, t, null, null);
             }
@@ -685,9 +692,10 @@
         };
 
         function addRoute(name, route) {
-            if (typeof name !== 'string'
-              && name != null || name === "" || /^\d+$/.test(name))
-                throw new Error("Invalid argument: route name is invalid");
+            if (typeof name !== 'string' && name != null
+            || name === ""
+            || /^\d+$/.test(name))
+                throw new Error("Invalid argument: route name is invalid. name="+JSON.stringify(name));
             _routes.push(new Route(route));
             if (name)
                 _routes[name] = route;
@@ -706,9 +714,10 @@
             mixins = opts.mixins || [];
 
         // adding routes
-        if (routes instanceof Array)
-            for (var itR = 0; itR < routes.length; itR++)
-                addRoute.call(this, routes[itR]);
+        if (routes)
+            for (var itR in routes)
+                if (routes.hasOwnProperty(itR))
+                    addRoute.call(this, routes instanceof Array && /^\d+$/.test(itR) ? null : itR, routes[itR]);
 
 
 

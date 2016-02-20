@@ -1,6 +1,6 @@
-// Routing Tests v0.1.0    2015-01-16
+// Routing Tests v0.1.1    2015-01-16
 //  author: Miguel Angelo
-//  require: masb.routing.v0.1.0.js
+//  require: masb.routing.v0.2.2.js
 //  require: masb.flow.graph.v1.5.0.js
 //  require: masb.tests.v1.0.0.js
 //  require: masb.tests.ex.v1.0.0.js
@@ -40,11 +40,14 @@ function doRoutingTests(graphFlow, TestClass)
         };
     }
 
-    function CreateRouter() {
+    function CreateRouter(routes) {
+        if (routes instanceof Array);
+        else if (routes && typeof routes.UriPattern == 'string') routes = [routes];
+        else routes = [];
         return function CreateRouter() {
             var globals = { area: null };
-            this.step("CreateRouter: globals = " + JSON.stringify(globals));
-            return this.router = new Router({routes: [], globals: globals, basePath: 'MyApp'});
+            this.step("CreateRouter: globals = " + JSON.stringify(globals) + "; routes = " + JSON.stringify(routes));
+            return this.router = new Router({routes: routes, globals: globals, basePath: 'MyApp'});
         };
     }
 
@@ -134,13 +137,12 @@ function doRoutingTests(graphFlow, TestClass)
         };
     }
 
-    var testResults = [];
-    function doSomeTests(tests) {
+    function getTestFunctions(tests) {
         tests.createContext = tester.testContextCreator;
-        var result = tests.callAll();
-        testResults.push(result);
+        return tests.getCallers();
     }
 
+    var testEx = tester.setupGraphFlow();
     var markersEx = gfexEnableMarkers(graphFlow);
     try {
 
@@ -152,13 +154,22 @@ function doRoutingTests(graphFlow, TestClass)
             acceptMarker = graphFlow.acceptMarker;
 
         var tests = {
+            /**/
             routeWithDefault: sequence(
-                CreateRouter(),
                 alternate(
-                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index", id: null } }),
-                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", id: null } }),
-                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { action: "Index", id: null } }),
-                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { id: null } })
+                    sequence(
+                        CreateRouter(),
+                        alternate(
+                            AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index", id: Router.OptionalParam } }),
+                            AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", id: Router.OptionalParam } }),
+                            AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { action: "Index", id: Router.OptionalParam } }),
+                            AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { id: Router.OptionalParam } })
+                        )
+                    ),
+                    CreateRouter({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index", id: Router.OptionalParam } }),
+                    CreateRouter({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", id: Router.OptionalParam } }),
+                    CreateRouter({ UriPattern: "{controller}/{action}/{id}", Defaults: { action: "Index", id: Router.OptionalParam } }),
+                    CreateRouter({ UriPattern: "{controller}/{action}/{id}", Defaults: { id: Router.OptionalParam } })
                 ),
                 alternate(
                     GetRouteMatchFromUri("~/Home/Index/"),
@@ -742,60 +753,105 @@ function doRoutingTests(graphFlow, TestClass)
                     if (t.mrk == "B")
                         this.assert(function() { return d.value == "/MyApp/?mrk=B"; });
                 })
+            ),
+            tryMatchUris: sequence(
+                CreateRouter(),
+                alternate(
+                    AddRoute({ UriPattern: "" }),
+                    AddRoute({ UriPattern: "{controller}" }),
+                    AddRoute({ UriPattern: "{controller}", Defaults: {controller:"Home"} })
+                ),
+                GetRouteMatchFromUri(""),
+                logProps(),
+                test("try match URI", function(d) {
+                })
             )
+            /*/
+            singleTestTest: sequence(
+                CreateRouter(),
+                alternate(
+                    AddRoute({ UriPattern: "" })
+                ),
+                GetRouteMatchFromUri(""),
+                logProps(),
+                test("test test", function(d) {
+                    throw new Error("Test function called.");
+                })
+            )
+            /**/
         };
 
-        doSomeTests(alternate(
-                tests.routeWithDefault,
-                tests.routeGetFromApplicationUri,
-                tests.noValueNoDefault,
-                tests.missingMiddle,
-                tests.constraintFail,
-                tests.matchBraces,
-                tests.syntaxErrors,
-                tests.emptySegment,
-                tests.unnamedPlaceholder,
-                tests.adjacentPlaceholders,
-                tests.duplicatePlaceholders,
-                tests.segmentPartiallyFilled,
-                tests.missingLiteral,
-                tests.discrepancies,
-                tests.matchFailThenMatchOk,
-                tests.matchWithQuery,
-                undefined // no test at all
-            ));
+        var groupedTestFunctions = [];
+        
+        /**/
+        groupedTestFunctions.push(
+            getTestFunctions(alternate(
+                    tests.tryMatchUris,
+                    undefined // no test at all
+                )));
 
-        doSomeTests(alternate(
-                sequence(
-                    tests.buildUriStart1,
-                    alternate(
-                        tests.buildUriWithArea,
-                        tests.buildUriWithQuery,
-                        tests.buildUriForDefArea,
-                        tests.buildUriWithDefAtEnd,
-                        tests.buildUriKeepingArea,
-                        tests.buildUriKeepingAreaCtrl,
-                        tests.buildApplicationUri,
+        groupedTestFunctions.push(
+            getTestFunctions(alternate(
+                    tests.routeWithDefault,
+                    tests.routeGetFromApplicationUri,
+                    tests.noValueNoDefault,
+                    tests.missingMiddle,
+                    tests.constraintFail,
+                    tests.matchBraces,
+                    tests.syntaxErrors,
+                    tests.emptySegment,
+                    tests.unnamedPlaceholder,
+                    tests.adjacentPlaceholders,
+                    tests.duplicatePlaceholders,
+                    tests.segmentPartiallyFilled,
+                    tests.missingLiteral,
+                    tests.discrepancies,
+                    tests.matchFailThenMatchOk,
+                    tests.matchWithQuery,
+                    undefined // no test at all
+                )));
+
+        groupedTestFunctions.push(
+            getTestFunctions(alternate(
+                    sequence(
+                        tests.buildUriStart1,
+                        alternate(
+                            tests.buildUriWithArea,
+                            tests.buildUriWithQuery,
+                            tests.buildUriForDefArea,
+                            tests.buildUriWithDefAtEnd,
+                            tests.buildUriKeepingArea,
+                            tests.buildUriKeepingAreaCtrl,
+                            tests.buildApplicationUri,
+                            undefined // no test at all
+                        ),
                         undefined // no test at all
                     ),
+                    tests.buildUriWithConstraint,
+                    tests.buildUriWithoutData1,
+                    tests.buildUriWithoutData2,
+                    tests.buildUriMatchingNone,
+                    tests.buildUriMatchFail,
                     undefined // no test at all
-                ),
-                tests.buildUriWithConstraint,
-                tests.buildUriWithoutData1,
-                tests.buildUriWithoutData2,
-                tests.buildUriMatchingNone,
-                tests.buildUriMatchFail,
-                undefined // no test at all
-            ));
+                )));
         
-        doSomeTests(alternate(
-                tests.buildUriWithLocationMixin,
-                undefined // no test at all
-            ));
+        groupedTestFunctions.push(
+            getTestFunctions(alternate(
+                    tests.buildUriWithLocationMixin,
+                    undefined // no test at all
+                )));
+                /*/
+        groupedTestFunctions.push(
+            getTestFunctions(alternate(
+                    tests.singleTestTest,
+                    undefined // no test at all
+                )));
+                /**/
+
+        return groupedTestFunctions;
     }
     finally {
         markersEx.disableMarkers();
+        testEx.dispose();
     }
-
-    return testResults;
 }

@@ -29,11 +29,11 @@
     <script type="text/jsx">
         var graphFlow = createGraphFlow();
         var TestClass = createTestClass(graphFlow);
-        var testMasterResults = doRoutingTests(graphFlow, TestClass);
+        var groupedTestFunctions = doRoutingTests(graphFlow, TestClass);
 
         var output = document.getElementById("output");
         var details = document.getElementById("details");
-        BuildTestTables(testMasterResults, document, output, details);
+        BuildTestTables(groupedTestFunctions, document, output, details, false);
     </script>
 </body>
 </html>
