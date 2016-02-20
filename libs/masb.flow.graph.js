@@ -1,11 +1,12 @@
-// Graph Flow v1.7.0    2016-02-19
+// Graph Flow v1.7.1    2016-02-20
 // Author: Miguel Angelo
 // Licence:
 //      Contact me to get a licence
 //          -- OR --
-//      Choose one of these open source licences: none
+//      Choose one of these open source licences: MIT
 // Versions:
-//  1.7.0   getCallers to get a function for each alternative (2016-02-19)
+//  1.7.1   Added transformers, changed catchCombinator into catchTransformer (2016-02-20)
+//  1.7.0   Added getCallers to get a function for each alternative (2016-02-19)
 //  1.6.0   Catch combinator (2015-01-27)
 //  1.5.0   Better flow syntax: sequence, alternate, combine (2014-11-30)
 //  1.4.1   BUG: the same NoOp function cannot be used in multiple places, it must be replicated
@@ -17,12 +18,13 @@
 //  1.0.0   Initial version
 "use strict";
 function createGraphFlow() {
-    const info = {
-        version: { major:1, minor:7, patch:0, release: new Date(2016, 11, 30) },
+    const info = Object.freeze({
+        version: { major:1, minor:7, patch:1, release: new Date(2016, 02, 20) },
         created: new Date(2014, 11, 25),
         authors: ["Miguel Angelo"]
-    };
+    });
     var GF = GraphFlow;
+    //GF.plugins = {};
     GF.info = info;
     GF.Error = gfError;
     GF.Result = gfResult;
@@ -30,7 +32,7 @@ function createGraphFlow() {
     GF.NoOp = NoOp;
     GF.End = finalFunc(End);
     GF.finalFunc = finalFunc;
-    GF.defaultTransformer = identity;
+    GF.defaultTransformers = [];
     GF.defaultCombinator = valueCombinator;
     GF.defaultInherit = defaultInherit;
     GF.createContext = createContext;
@@ -39,14 +41,15 @@ function createGraphFlow() {
     GF.sequence = sequence;
     GF.alternate = alternate;
     GF.combine = combine;
-    GF.combinators = {
+    GF.combinators = Object.freeze({
         valueCombinator: valueCombinator,
-        catchCombinator: catchCombinator,
         funcCombinator: funcCombinator
-    };
-    GF.transformers = {
+    });
+    GF.transformers = Object.freeze({
         identityTransformer: identity,
-    };
+        catchTransformer: catchTransformer
+    });
+    //Object.seal(GF);
     var push = Array.prototype.push;
     function GraphFlow() {
         var ffss = normalize(argumentsToArray(arguments));
@@ -115,6 +118,82 @@ function createGraphFlow() {
         return a;
     }
 
+    function doTransform(fs) {
+        var deftransfs = this.defaultTransformers;
+        return fs.map(function(f) {
+            if(f.transformers)debugger;
+            var transfs = Array.isArray(f.transformers)       ? deftransfs.concat(f.transformers)
+                        : typeof f.transformers == 'function' ? deftransfs.concat(f.transformers)
+                        :                                       deftransfs;
+            var f2 = f;
+            for(var i = 0; i < transfs.length; i++) {
+                var transf = transfs[i];
+                if (typeof transf != 'function')
+                    throw new Error("Transformer must be a function.");
+                var f3 = transf(f2);
+                if (f3 != f2) {
+                    var inherit = f2.inherit || GF.defaultInherit;
+                    if (inherit) inherit.call(GF, f3, f2, fs);
+                }
+                f2 = f3;
+            }
+            return f2;
+        });
+    }
+
+    function canInheritProperty(dst, src, prop) {
+        if(prop=='transformers')debugger;
+        return !dst.hasOwnProperty(prop)
+            && src.hasOwnProperty(prop)
+            && (!src[prop] || !src[prop].notInheritable);
+    }
+    function defaultInherit(gof, g, fs) {
+        // `gof` inherits properties owned by `g`, if `gof` does not
+        // already own a property with the same name from `g`.
+        for (var k in g)
+            if (canInheritProperty.call(this, gof, g, k))
+                gof[k] = g[k];
+    }
+    function createContext(fn, mc) {
+        return {};
+    }
+    function executor(fn, ctx, args, mc) {
+        try {
+            var ResultClass = fn.Result || mc&&mc.Result || this.Result || gfResult;
+            return new ResultClass(fn.apply(ctx, args), ctx);
+        }
+        catch (ex) {
+            var ErrorClass = fn.Error || mc&&mc.Error || this.Error || gfError;
+            return new ErrorClass(ex, ctx);
+        }
+    }
+
+/***************
+**
+**  COMBINATORS
+**
+**      Combinators are functions that combine two other functions.
+**  Given two function, for example f and g, the combination another
+**  function that has the form FoG(x) => f(g(x)). It is the combinator
+**  that makes the GoF function.
+**  
+**      A generic combinator can be described as:
+**          Combinator(f,g) => ( FoG(x) => f(g(x)) )
+**
+**      When we want to serialize a sequence of functions whose return
+**  is the argument to the next, we can use combinators in pairs.
+**  If we have f, g and h functions and want to produce f(g(h(x))),
+**  we can do this:
+**          GoH = Combinator(g,h)
+**          FoGoH = Combinator(f, GoH)
+**      Finally we can do the substitutions and find that:
+**          FoGoH = Combinator(f, Combinator(g,h))
+**
+***************/
+
+    /// The valueCombinator produces a composite function
+    /// that directly uses the value of the other function.
+    ///     C(f,g) => ( FoG(x) => f(g(x)) )
     function valueCombinator(g, argsFn, fs) {
         function GoF(/* arguments */) {
             var args = argsFn.apply(this, arguments);
@@ -126,45 +205,9 @@ function createGraphFlow() {
     }
     valueCombinator.procArgs = identity;
 
-    function doTransform(fs) {
-        var transf = this.defaultTransformer || identity;
-        if (typeof transf != 'function')
-            throw new Error("Transformer must be a function.");
-        return fs.map(function(f){
-            var f2 = transf(f) || f;
-            if (f2 != f) {
-                var inherit = f.inherit || GF.defaultInherit;
-                if (inherit) inherit.call(GF, f2, f, fs);
-            }
-            return f2;
-        });
-    }
-
-    // BUG: catchCombinator should not be a combinator...
-    // When there is no functions before the function marked with a combinator
-    // it won't be applied. It is only use to combine two consecutive functions.
-    // A try/catch should be applied even when there is only one function.
-    function catchCombinator(g, argsFn, fs) {
-        function GoF_catch() {
-            var args = argsFn.apply(this, arguments);
-            var err, val;
-            
-            try {
-                val = g.apply(this, args);
-            }
-            catch (e) {
-                err = e;
-            }
-            
-            return { error: err, value: val };
-        };
-        if (g.hasOwnProperty('inherit'))
-            GoF_catch.inherit = g.inherit;
-        GoF_catch.combinator = valueCombinator;
-        return GoF_catch;
-    }
-    catchCombinator.procArgs = identity;
-
+    /// The funcCombinator produces a composite function
+    /// that indirectly uses the value of the other function.
+    ///     C(f,g) => ( FoG(x) => f(() => g(x)) )
     function funcCombinator(g, argsFn, fs) {
         // this is a special combinator that passes
         // `fs` functions to the `g` function,
@@ -210,53 +253,65 @@ function createGraphFlow() {
             };
         });
     }
-    function canInheritProperty(dst, src, prop) {
-        return !dst.hasOwnProperty(prop)
-            && src.hasOwnProperty(prop)
-            && (!src[prop] || !src[prop].notInheritable);
-    }
-    function defaultInherit(gof, g, fs) {
-        // `gof` inherits properties owned by `g`, if `gof` does not
-        // already own a property with the same name from `g`.
-        for (var k in g)
-            if (canInheritProperty.call(this, gof, g, k))
-                gof[k] = g[k];
-    }
-    function createContext(fn, mc) {
-        return {};
-    }
-    function executor(fn, ctx, args, mc) {
-        try {
-            var ResultClass = fn.Result || mc&&mc.Result || this.Result || gfResult;
-            return new ResultClass(fn.apply(ctx, args), ctx);
-        }
-        catch (ex) {
-            var ErrorClass = fn.Error || mc&&mc.Error || this.Error || gfError;
-            return new ErrorClass(ex, ctx);
-        }
+
+
+/***************
+**
+**  TRANSFORMERS
+**
+**      Transformers are functions that change another function.
+**  Given a funcion f, a transformer returns another funcion that
+**  receives the same arguments but returns a diferent thing.
+**  
+**      A generic transformer can be described as:
+**          Transformer(x) => ( f2(x) => k(f(x)) )
+**
+***************/
+
+    function catchTransformer(f) {
+        //(window.lista = window.lista || []).push(f);
+        function F_catch(/* arguments */) {
+            // Here `this` is the context of defined by the caller.
+            var err, val;
+            try {
+                val = f.apply(this, arguments);
+            }
+            catch (e) {
+                err = e;
+            }
+            return { error: err, value: val };
+        };
+        if (F_catch.hasOwnProperty('inherit'))
+            F_catch.inherit = f.inherit;
+        return F_catch;
     }
 
-    // FLOW FUNCTIONS
-    //  These function are used to construct the flow of code.
-    //  Each one accepts multiple arguments, all being functions.
-    //  What is done with each passed function, depends on the method:
-    //      - sequence: the functions are called in sequence, one after the other
-    //          sequence(f0, f1, f2) => [{f0();f1();f2();}]
-    //          sequence() => [{}]
-    //      - alternate: each function is one step in one alternating flow
-    //          alternate(f0, f1, f2) => [{f0();}, {f1();}, {f2();}]
-    //          alternate() => []
-    //      - combine: the functions will be called in alternating flows, in different sequential orders
-    //          combine(f0, f1) => [{f0();}, {f0();f1();}, {f1();}, {f1();f0();}]
-    //          combine(1)(f0, f1) => same as above
-    //          combine(2)(f0, f1) => [{f0();f1();}, {f1();f0();}]
-    //          combine(0,1)(f0, f1) => [{}, {f0();}, {f1();}]
-    //          combine(0,'GT')(f0, f1) => [{}, {f0();}, {f0();f1();}, {f1();}]
-    //          combine(1,'GT')(f0, f1) => [{f0();}, {f0();f1();}, {f1();}]
-    //          combine('GT')(f0, f1) => same as above
-    //          combine(0)() => [{}]
-    //          combine(1)() => []
-    //          combine() => []
+/***************
+**
+** FLOW FUNCTIONS
+**  These function are used to construct the flow of code.
+**  Each one accepts multiple arguments, all being functions.
+**  What is done with each passed function, depends on the method:
+**      - sequence: the functions are called in sequence, one after the other
+**          sequence(f0, f1, f2) => [{f0();f1();f2();}]
+**          sequence() => [{}]
+**      - alternate: each function is one step in one alternating flow
+**          alternate(f0, f1, f2) => [{f0();}, {f1();}, {f2();}]
+**          alternate() => []
+**      - combine: the functions will be called in alternating flows, in different sequential orders
+**          combine(f0, f1) => [{f0();}, {f0();f1();}, {f1();}, {f1();f0();}]
+**          combine(1)(f0, f1) => same as above
+**          combine(2)(f0, f1) => [{f0();f1();}, {f1();f0();}]
+**          combine(0,1)(f0, f1) => [{}, {f0();}, {f1();}]
+**          combine(0,'GT')(f0, f1) => [{}, {f0();}, {f0();f1();}, {f1();}]
+**          combine(1,'GT')(f0, f1) => [{f0();}, {f0();f1();}, {f1();}]
+**          combine('GT')(f0, f1) => same as above
+**          combine(0)() => [{}]
+**          combine(1)() => []
+**          combine() => []
+**
+***************/
+
     function sequence() {
         var funcs = argumentsToArray(arguments);
         if (funcs.length) {
