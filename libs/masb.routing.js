@@ -117,7 +117,9 @@
     }
 
     function getSegments(uriPattern, LiteralClass, PlaceHolderClass) {
-        var segments = uriPattern && uriPattern.split('/').map(function (seg) {
+        if (typeof uriPattern != 'string') throw new Error("uriPattern must be a string.");
+        if (uriPattern == "") return [[new LiteralClass("")]];
+        var segments = uriPattern.split('/').map(function (seg) {
             var ss = seg.split(/(?:((?:[^\{\}]|\{\{|\}\})+)|\{([^\{\}]*)(?!\}\})\})/g),
                 items = [];
 
@@ -195,7 +197,7 @@
 
             for (var itSub = 0; itSub < subSegs.length; itSub++) {
                 var item = subSegs[itSub],
-                    value = segValues[segIdx++];
+                    value = segValues[segIdx++] || "";
                     
                 if (item instanceof PlaceHolderBase) {
                     var name = item.name,
@@ -216,7 +218,7 @@
                     literals++;
                 }
 
-                if (!value) missing++;
+                if (!value && item.value != "") missing++;
                 else filled++;
             }
 
@@ -574,10 +576,10 @@
     }
 
     function getQueryValues(uri) {
-        if (isNullOrEmpty(uri) || isUndefined(uri))
+        if (uri === null || uri === undefined)
             throw new Error("Uri cannot be null nor undefined.");
         uri = ""+uri;
-        uri = uri.replace(new RegExp("^"+escapeRegExp(this.basePath), "g"), "~/");
+        uri = uri.replace(new RegExp("^"+escapeRegExp(this.basePath.slice(0, -1))+"(?:\\/|$)", "g"), "~/");
         var qs = uri.split(/[?&]/g);
         uri = qs.splice(0,1)[0];
         qs = qs.map(function(x){

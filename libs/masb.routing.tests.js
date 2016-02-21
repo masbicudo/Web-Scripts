@@ -755,16 +755,36 @@ function doRoutingTests(graphFlow, TestClass)
                         this.assert(function() { return d.value == "/MyApp/?mrk=B"; });
                 })
             ),
-            tryMatchUris: sequence(
-                CreateRouter(),
+            matchEmptyPattern: sequence(
                 alternate(
-                    AddRoute({ UriPattern: "" }),
-                    AddRoute({ UriPattern: "{controller}" }),
-                    AddRoute({ UriPattern: "{controller}", Defaults: {controller:"Home"} })
+                    sequence(
+                        alternate(
+                            CreateRouter(null, null, "MyApp"),
+                            CreateRouter(null, null, "MyApp/"),
+                            CreateRouter(null, null, "/MyApp"),
+                            CreateRouter(null, null, "/MyApp/")
+                        ),
+                        AddRoute({ UriPattern: "" }),
+                        alternate(
+                            GetRouteMatchFromUri("/MyApp"),
+                            GetRouteMatchFromUri("/MyApp/")
+                        )
+                    ),
+                    sequence(
+                        alternate(
+                            CreateRouter(null, null, ""),
+                            CreateRouter(null, null, "/")
+                        ),
+                        AddRoute({ UriPattern: "" }),
+                        alternate(
+                            GetRouteMatchFromUri(""),
+                            GetRouteMatchFromUri("/")
+                        )
+                    )
                 ),
-                GetRouteMatchFromUri(""),
                 logProps(),
-                test("try match URI", function(d) {
+                test("match empty pattern", function(d) {
+                    this.assert(function() { return JSON.stringify(d.data) == "{}"; });
                 })
             )
             /*/
@@ -809,6 +829,7 @@ function doRoutingTests(graphFlow, TestClass)
                     tests.discrepancies,
                     tests.matchFailThenMatchOk,
                     tests.matchWithQuery,
+                    tests.matchEmptyPattern,
                     undefined // no test at all
                 )));
 
