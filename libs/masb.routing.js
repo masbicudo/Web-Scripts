@@ -29,7 +29,33 @@
 /// With plug-ins, anything is possible, including the above mentioned behaviours.
 "use strict";
 
-(function() {
+(function (root, factory) {
+    function setGlobal(exports) {
+        for(var k in exports)
+            if (exports.hasOwnProperty(k))
+                root[k] = exports[k];
+    }
+    if (typeof define === 'function' && define.amd) {
+        // AMD. Register as an anonymous module.
+        define([/* 'b' */], function (/* b */) {
+            return (/*setGlobal(*/
+                factory(/* b */)
+            /*)*/);
+        });
+    } else if (typeof module === 'object' && module.exports) {
+        // Node. Does not work with strict CommonJS, but
+        // only CommonJS-like environments that support module.exports,
+        // like Node.
+        /*setGlobal(*/
+            module.exports = factory(/* require('b') */)
+        /*)*/;
+    } else {
+        // Browser globals (root is window)
+        setGlobal(factory(/* root.b */));
+    }
+}(this, function (/* b */) {
+    //use b in some fashion.
+
 
 
 
@@ -343,7 +369,6 @@
         this.details = freezeAny(details);
         freeze(this);
     }
-    this.RouteMatch = RouteMatch;
 
     function addParams(p2, values) {
         for (var p1 in values) {
@@ -761,12 +786,16 @@
 
 /*****************************************************************************************
 **                                                                                      **
-**    PUBLIC GLOBAL DEFINITIONS.                                                        **
+**    EXPORTING MODULE DEFINITIONS.                                                     **
 **                                                                                      **
 *****************************************************************************************/
 
-    this.RouteError = RouteError;
-    this.Router = Router;
-
-    return Router;
-})();
+    // Just return a value to define the module export.
+    // This example returns an object, but the module
+    // can return a function as the exported value.
+    return {
+        Router: Router,
+        RouteError: RouteError,
+        RouteMatch: RouteMatch
+    };
+}));
