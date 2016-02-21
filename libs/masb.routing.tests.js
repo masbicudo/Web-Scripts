@@ -1,9 +1,8 @@
-// Routing Tests v0.1.1    2015-01-16
+// Routing Tests v0.2.6    2016-02-20
 //  author: Miguel Angelo
-//  require: masb.routing.v0.2.2.js
-//  require: masb.tests.v1.0.0.js
-//  require: masb.tests.ex.v1.0.0.js
+//  require: masb.routing.v0.2.6.js
 //  require: masb.flow.graph.v1.7.2.js
+//  require: masb.tests.v1.2.0.js
 "use strict";
 function doRoutingTests(graphFlow, TestClass)
 {
@@ -41,27 +40,37 @@ function doRoutingTests(graphFlow, TestClass)
         };
     }
 
-    function CreateRouter(routes) {
+    function CreateRouter(routes, globals, basePath) {
         if (routes instanceof Array);
         else if (routes && typeof routes.UriPattern == 'string') routes = [routes];
         else routes = [];
+        globals = globals || { area: "" };
+        basePath = typeof basePath != 'string' ? "MyApp" : basePath;
         return function CreateRouter() {
-            var globals = { area: null };
-            this.step("CreateRouter: globals = " + JSON.stringify(globals) + "; routes = " + JSON.stringify(routes));
-            return this.router = new Router({routes: routes, globals: globals, basePath: 'MyApp'});
+            this.step("CreateRouter: basePath = " + JSON.stringify(basePath) + "; globals = " + JSON.stringify(globals) + "; routes = " + JSON.stringify(routes));
+            return this.router = new Router({
+                routes: routes,
+                globals: globals,
+                basePath: basePath
+                });
         };
     }
 
-    function CreateRouterWithLocationMixin() {
+    function CreateRouterWithLocationMixin(routes, globals, basePath) {
+        if (routes instanceof Array);
+        else if (routes && typeof routes.UriPattern == 'string') routes = [routes];
+        else routes = [];
+        globals = globals || { area: "" };
+        basePath = typeof basePath != 'string' ? "MyApp" : basePath;
         return function CreateRouter() {
-            var globals = { area: null };
-            this.step("CreateRouterWithLocationMixin: globals = " + JSON.stringify(globals));
+            this.step("CreateRouterWithLocationMixin: basePath = " + JSON.stringify(basePath) + "; globals = " + JSON.stringify(globals) + "; routes = " + JSON.stringify(routes));
             return this.router = new Router({
-                routes: [],
+                routes: routes,
                 globals: globals,
-                basePath: 'MyApp',
+                basePath: basePath,
                 // this mix-in tracks the current current location internally
-                mixins: [routerMixins.location] });
+                mixins: [routerMixins.location]
+                });
         };
     }
 
@@ -154,8 +163,8 @@ function doRoutingTests(graphFlow, TestClass)
             marker = graphFlow.marker,
             acceptMarker = graphFlow.acceptMarker;
 
+        /**/
         var tests = {
-            /**/
             routeWithDefault: sequence(
                 alternate(
                     sequence(
@@ -810,30 +819,32 @@ function doRoutingTests(graphFlow, TestClass)
                     this.assert(function() { return JSON.stringify(d.data) == "{}"; });
                 })
             )
-            /*/
+        };
+        /*/
+        var tests = {
             singleTestTest: sequence(
                 CreateRouter(),
-                alternate(
-                    AddRoute({ UriPattern: "" })
-                ),
-                GetRouteMatchFromUri(""),
-                logProps(),
-                test("test test", function(d) {
-                    throw new Error("Test function called.");
+                catchError(alternate(
+                    //AddRoute({ UriPattern: "Schedule/{id}/{id}" }),
+                    //AddRoute({ UriPattern: "Schedule/{id}-{id}" }),
+                    AddRoute({ UriPattern: "Schedule/{name}-{id}/{name}/{id}" })
+                )),
+                writeError('log'),
+                test("duplicate place-holders", function(d) {
+                    this.assert(function() {
+                        return d.error instanceof Error && d.error.type == "DUPLICATE_PLACEHOLDER";
+                    });
                 })
             )
-            /**/
         };
+        /**/
+
+
+
 
         var groupedTestFunctions = [];
         
         /**/
-        groupedTestFunctions.push(
-            getTestFunctions(alternate(
-                    tests.tryMatchUris,
-                    undefined // no test at all
-                )));
-
         groupedTestFunctions.push(
             getTestFunctions(alternate(
                     tests.routeValuesCannotBeNull,
