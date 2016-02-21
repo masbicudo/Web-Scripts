@@ -1,9 +1,9 @@
 // Routing Tests v0.1.1    2015-01-16
 //  author: Miguel Angelo
 //  require: masb.routing.v0.2.2.js
-//  require: masb.flow.graph.v1.5.0.js
 //  require: masb.tests.v1.0.0.js
 //  require: masb.tests.ex.v1.0.0.js
+//  require: masb.flow.graph.v1.7.2.js
 "use strict";
 function doRoutingTests(graphFlow, TestClass)
 {
@@ -19,7 +19,7 @@ function doRoutingTests(graphFlow, TestClass)
     }
     
     function catchError(fn) {
-        fn.combinator = graphFlow.combinators.catchCombinator;
+        fn.transformers = [graphFlow.transformers.catchTransformer];
         return fn;
     }
     
