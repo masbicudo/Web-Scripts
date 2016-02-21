@@ -1,7 +1,7 @@
-/// MASB-Router v0.2.3
+/// MASB-Router v0.2.6      2016-02-20
 ///
 ///  Name: MASB-Router
-///  Version: 0.2.3
+///  Version: 0.2.6
 ///  Author: Miguel Angelo <masbicudo@gmail.com>
 ///  License: MIT
 ///
@@ -10,16 +10,27 @@
 ///  an external agent can determine what to
 ///  render next.
 ///
+///  It can also construct an URI given an object
+///  containing values. The first route that matches
+///  the values will be used to construct the URI.
+///
 ///  This will mimic the behaviour of ASP.NET routing with the following exceptions:
-///  1) when building patterns:
-///      - none yet
-///  2) when matching URI's:
-///      - pattern "{x}-{y}" matches '~/x-y-z/' as:
-///          Here:    x -> 'x';   y -> 'y-z'
-///          ASP.NET: x -> 'x-y'; y -> 'z'
-///      - pattern "{x?}-{y}" matches '~/---/' as:
-///          Here:    x -> no match (x = '' and y = '--', but x is a middle place-holder)
-///          ASP.NET: x -> '-'; y -> '-'
+///  E.1) when building patterns:
+///         - optional parameters defined in the Defaults collection of a route
+///             Here:    paramName: ""
+///             ASP.NET: paramName = UrlParameter.Optional
+///  E.2) when matching URI:
+///         - pattern "{x}-{y}" matches '~/x-y-z/' as:
+///             Here:    x -> 'x';   y -> 'y-z'
+///             ASP.NET: x -> 'x-y'; y -> 'z'
+///         - pattern "{x?}-{y}" matches '~/---/' as:
+///             Here:    x -> no match (x = '' and y = '--', but x is a middle place-holder)
+///             ASP.NET: x -> '-'; y -> '-'
+///
+///  Some controversial behaviours of ASP.NET router that were kept:
+///  K.1) when parsing URI
+///         - query string "?n" is the same as "?n=", both have `n` evalueated as an empty string ""
+///             The first could be evaluated to null, and the second to ""... but ASP.NET does not do that.
 ///
 ///  This will not:
 ///  - change URI for single-page apps
