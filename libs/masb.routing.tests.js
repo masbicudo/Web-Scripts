@@ -42,7 +42,7 @@ function doRoutingTests(graphFlow, TestClass)
 
     function CreateRouter(routes, globals, basePath) {
         if (routes instanceof Array);
-        else if (routes && typeof routes.UriPattern == 'string') routes = [routes];
+        else if (routes && typeof routes.uriPattern == 'string') routes = [routes];
         else routes = [];
         globals = globals || { area: "" };
         basePath = typeof basePath != 'string' ? "MyApp" : basePath;
@@ -58,7 +58,7 @@ function doRoutingTests(graphFlow, TestClass)
 
     function CreateRouterWithLocationMixin(routes, globals, basePath) {
         if (routes instanceof Array);
-        else if (routes && typeof routes.UriPattern == 'string') routes = [routes];
+        else if (routes && typeof routes.uriPattern == 'string') routes = [routes];
         else routes = [];
         globals = globals || { area: "" };
         basePath = typeof basePath != 'string' ? "MyApp" : basePath;
@@ -170,16 +170,16 @@ function doRoutingTests(graphFlow, TestClass)
                     sequence(
                         CreateRouter(),
                         alternate(
-                            AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index", id: "" } }),
-                            AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", id: "" } }),
-                            AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { action: "Index", id: "" } }),
-                            AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { id: "" } })
+                            AddRoute({ uriPattern: "{controller}/{action}/{id}", defaults: { controller: "Home", action: "Index", id: "" } }),
+                            AddRoute({ uriPattern: "{controller}/{action}/{id}", defaults: { controller: "Home", id: "" } }),
+                            AddRoute({ uriPattern: "{controller}/{action}/{id}", defaults: { action: "Index", id: "" } }),
+                            AddRoute({ uriPattern: "{controller}/{action}/{id}", defaults: { id: "" } })
                         )
                     ),
-                    CreateRouter({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index", id: "" } }),
-                    CreateRouter({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", id: "" } }),
-                    CreateRouter({ UriPattern: "{controller}/{action}/{id}", Defaults: { action: "Index", id: "" } }),
-                    CreateRouter({ UriPattern: "{controller}/{action}/{id}", Defaults: { id: "" } })
+                    CreateRouter({ uriPattern: "{controller}/{action}/{id}", defaults: { controller: "Home", action: "Index", id: "" } }),
+                    CreateRouter({ uriPattern: "{controller}/{action}/{id}", defaults: { controller: "Home", id: "" } }),
+                    CreateRouter({ uriPattern: "{controller}/{action}/{id}", defaults: { action: "Index", id: "" } }),
+                    CreateRouter({ uriPattern: "{controller}/{action}/{id}", defaults: { id: "" } })
                 ),
                 alternate(
                     GetRouteMatchFromUri("~/Home/Index/"),
@@ -196,10 +196,10 @@ function doRoutingTests(graphFlow, TestClass)
             routeGetFromApplicationUri: sequence(
                 CreateRouter(),
                 alternate(
-                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index", id: "" } }),
-                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", id: "" } }),
-                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { action: "Index", id: "" } }),
-                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { id: "" } })
+                    AddRoute({ uriPattern: "{controller}/{action}/{id}", defaults: { controller: "Home", action: "Index", id: "" } }),
+                    AddRoute({ uriPattern: "{controller}/{action}/{id}", defaults: { controller: "Home", id: "" } }),
+                    AddRoute({ uriPattern: "{controller}/{action}/{id}", defaults: { action: "Index", id: "" } }),
+                    AddRoute({ uriPattern: "{controller}/{action}/{id}", defaults: { id: "" } })
                 ),
                 alternate(
                     GetRouteMatchFromUri("/MyApp/Home/Index/"),
@@ -216,10 +216,10 @@ function doRoutingTests(graphFlow, TestClass)
             noValueNoDefault: sequence(
                 CreateRouter(),
                 alternate(
-                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index" } }),
-                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home" } }),
-                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { action: "Index" } }),
-                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { } })
+                    AddRoute({ uriPattern: "{controller}/{action}/{id}", defaults: { controller: "Home", action: "Index" } }),
+                    AddRoute({ uriPattern: "{controller}/{action}/{id}", defaults: { controller: "Home" } }),
+                    AddRoute({ uriPattern: "{controller}/{action}/{id}", defaults: { action: "Index" } }),
+                    AddRoute({ uriPattern: "{controller}/{action}/{id}", defaults: { } })
                 ),
                 alternate(
                     GetRouteMatchFromUri("~/Home/Index/"),
@@ -237,8 +237,8 @@ function doRoutingTests(graphFlow, TestClass)
                 alternate(
                     sequence(
                         AddRoute({
-                            UriPattern: "{controller}/{action}/{id}",
-                            Defaults: { controller: "Home", action: "Index", id: "" } }),
+                            uriPattern: "{controller}/{action}/{id}",
+                            defaults: { controller: "Home", action: "Index", id: "" } }),
                         alternate(
                             GetRouteMatchFromUri("~/Home//20"),
                             GetRouteMatchFromUri("~//Index/20"),
@@ -258,13 +258,13 @@ function doRoutingTests(graphFlow, TestClass)
                 CreateRouter(),
                 alternate(
                     AddRoute({
-                        UriPattern: "Schedule/{date}/{id}",
-                        Defaults: { controller: "Schedule", action: "Index", id: "" },
-                        Constraints: { date: "^\\d{4}-\\d\\d-\\d\\d$" } }),
+                        uriPattern: "Schedule/{date}/{id}",
+                        defaults: { controller: "Schedule", action: "Index", id: "" },
+                        constraints: { date: "^\\d{4}-\\d\\d-\\d\\d$" } }),
                     AddRoute({
-                        UriPattern: "Schedule/{date}/{id}",
-                        Defaults: { controller: "Schedule", action: "Index", id: "" },
-                        Constraints: { date: function(val,ctx) { return /^\d{4}-\d\d-\d\d$/g.test(val); } } })
+                        uriPattern: "Schedule/{date}/{id}",
+                        defaults: { controller: "Schedule", action: "Index", id: "" },
+                        constraints: { date: function(val,ctx) { return /^\d{4}-\d\d-\d\d$/g.test(val); } } })
                 ),
                 alternate(
                     GetRouteMatchFromUri("~/Schedule/2015-01-m7"),
@@ -283,15 +283,15 @@ function doRoutingTests(graphFlow, TestClass)
                 CreateRouter(),
                 alternate(
                     sequence(
-                        AddRoute({ UriPattern: "Schedule/{{id}}" }),
+                        AddRoute({ uriPattern: "Schedule/{{id}}" }),
                         GetRouteMatchFromUri("~/Schedule/{id}")
                     ),
                     sequence(
-                        AddRoute({ UriPattern: "Schedule/{{id" }),
+                        AddRoute({ uriPattern: "Schedule/{{id" }),
                         GetRouteMatchFromUri("~/Schedule/{id")
                     ),
                     sequence(
-                        AddRoute({ UriPattern: "Schedule/id}}" }),
+                        AddRoute({ uriPattern: "Schedule/id}}" }),
                         GetRouteMatchFromUri("~/Schedule/id}")
                     )
                 ),
@@ -306,8 +306,8 @@ function doRoutingTests(graphFlow, TestClass)
             syntaxErrors: sequence(
                 CreateRouter(),
                 catchError(alternate(
-                    AddRoute({ UriPattern: "Schedule/{{id}" }),
-                    AddRoute({ UriPattern: "Schedule/{id}}" })
+                    AddRoute({ uriPattern: "Schedule/{{id}" }),
+                    AddRoute({ uriPattern: "Schedule/{id}}" })
                 )),
                 writeError('log'),
                 logProps(),
@@ -321,20 +321,19 @@ function doRoutingTests(graphFlow, TestClass)
                 // for now, ASP.NET does not use null values in the values
                 // only empty strings will be accepted.
                 catchError(alternate(
-                    CreateRouter({ UriPattern: "Home", Defaults: { id: null } }),
+                    CreateRouter({ uriPattern: "Home", defaults: { id: null } }),
                     CreateRouter({ }, { area: null }),
                     sequence(
                         CreateRouter(),
-                        AddRoute({ UriPattern: "Home", Defaults: { id: null } })
+                        AddRoute({ uriPattern: "Home", defaults: { id: null } })
                     )
                 )),
                 writeError('log'),
                 logProps(),
                 test("values cannot be null", function(d) {
-                        debugger;
                     this.assert(function() {
                         return d.error instanceof Error && (
-                                d.error.message == "Object `Defaults` must not have null properties: [\"id\"]"
+                                d.error.message == "Object `defaults` must not have null properties: [\"id\"]"
                             ||  d.error.message == "Object `globals` must not have null properties: [\"area\"]"
                             );
                     });
@@ -343,8 +342,8 @@ function doRoutingTests(graphFlow, TestClass)
             emptySegment: sequence(
                 CreateRouter(),
                 catchError(alternate(
-                    AddRoute({ UriPattern: "Schedule//" }),
-                    AddRoute({ UriPattern: "Schedule//{id}" })
+                    AddRoute({ uriPattern: "Schedule//" }),
+                    AddRoute({ uriPattern: "Schedule//{id}" })
                 )),
                 writeError('log'),
                 logProps(),
@@ -357,8 +356,8 @@ function doRoutingTests(graphFlow, TestClass)
             unnamedPlaceholder: sequence(
                 CreateRouter(),
                 catchError(alternate(
-                    AddRoute({ UriPattern: "Schedule/{}" }),
-                    AddRoute({ UriPattern: "Schedule/{}/" })
+                    AddRoute({ uriPattern: "Schedule/{}" }),
+                    AddRoute({ uriPattern: "Schedule/{}/" })
                 )),
                 writeError('log'),
                 test("place-holder without name", function(d) {
@@ -370,9 +369,9 @@ function doRoutingTests(graphFlow, TestClass)
             adjacentPlaceholders: sequence(
                 CreateRouter(),
                 catchError(alternate(
-                    AddRoute({ UriPattern: "Schedule/{year}{month}{day}" }),
-                    AddRoute({ UriPattern: "Schedule/{year}{month}{day}/{id}" }),
-                    AddRoute({ UriPattern: "{year}{month}{day}" })
+                    AddRoute({ uriPattern: "Schedule/{year}{month}{day}" }),
+                    AddRoute({ uriPattern: "Schedule/{year}{month}{day}/{id}" }),
+                    AddRoute({ uriPattern: "{year}{month}{day}" })
                 )),
                 writeError('log'),
                 test("no adjacent place-holders", function(d) {
@@ -384,9 +383,9 @@ function doRoutingTests(graphFlow, TestClass)
             duplicatePlaceholders: sequence(
                 CreateRouter(),
                 catchError(alternate(
-                    AddRoute({ UriPattern: "Schedule/{id}/{id}" }),
-                    AddRoute({ UriPattern: "Schedule/{id}-{id}" }),
-                    AddRoute({ UriPattern: "Schedule/{name}-{id}/{name}/{id}" })
+                    AddRoute({ uriPattern: "Schedule/{id}/{id}" }),
+                    AddRoute({ uriPattern: "Schedule/{id}-{id}" }),
+                    AddRoute({ uriPattern: "Schedule/{name}-{id}/{name}/{id}" })
                 )),
                 writeError('log'),
                 test("duplicate place-holders", function(d) {
@@ -399,7 +398,7 @@ function doRoutingTests(graphFlow, TestClass)
                 CreateRouter(),
                 alternate(
                     sequence(
-                        AddRoute({ UriPattern: "Schedule/{name}-{id}/{xpto}", Defaults: { name: "", id: "", xpto: "" } }),
+                        AddRoute({ uriPattern: "Schedule/{name}-{id}/{xpto}", defaults: { name: "", id: "", xpto: "" } }),
                         alternate(
                             GetRouteMatchFromUri("~/Schedule/Miguel-"),
                             GetRouteMatchFromUri("~/Schedule/-/"),
@@ -410,7 +409,7 @@ function doRoutingTests(graphFlow, TestClass)
                         )
                     ),
                     sequence(
-                        AddRoute({ UriPattern: "File/{name}-{type}", Defaults: { name: "", type: "" } }),
+                        AddRoute({ uriPattern: "File/{name}-{type}", defaults: { name: "", type: "" } }),
                         alternate(
                             GetRouteMatchFromUri("~/File/fileName-"),
                             GetRouteMatchFromUri("~/File/-txt"),
@@ -430,7 +429,7 @@ function doRoutingTests(graphFlow, TestClass)
                 CreateRouter(),
                 alternate(
                     sequence(
-                        AddRoute({ UriPattern: "Schedule/{name}-{id}/{xpto}", Defaults: { name: "", id: "", xpto: "" } }),
+                        AddRoute({ uriPattern: "Schedule/{name}-{id}/{xpto}", defaults: { name: "", id: "", xpto: "" } }),
                         alternate(
                             GetRouteMatchFromUri("~/Schedule/Miguel"),
                             GetRouteMatchFromUri("~/Schedule//any"),
@@ -438,7 +437,7 @@ function doRoutingTests(graphFlow, TestClass)
                         )
                     ),
                     sequence(
-                        AddRoute({ UriPattern: "File/{name}-{type}", Defaults: { name: "", type: "" } }),
+                        AddRoute({ uriPattern: "File/{name}-{type}", defaults: { name: "", type: "" } }),
                         alternate(
                             GetRouteMatchFromUri("~/File/fileName")
                         )
@@ -456,7 +455,7 @@ function doRoutingTests(graphFlow, TestClass)
                 CreateRouter(),
                 alternate(
                     sequence(
-                        AddRoute({ UriPattern: "{x}-{y}", Defaults: { } }),
+                        AddRoute({ uriPattern: "{x}-{y}", defaults: { } }),
                         GetRouteMatchFromUri("~/x-y-z"),
                         logProps(),
                         writeError('log'),
@@ -467,7 +466,7 @@ function doRoutingTests(graphFlow, TestClass)
                         })
                     ),
                     sequence(
-                        AddRoute({ UriPattern: "{x}-{y}", Defaults: { x: "" } }),
+                        AddRoute({ uriPattern: "{x}-{y}", defaults: { x: "" } }),
                         GetRouteMatchFromUri('~/---'),
                         logProps(),
                         writeError('log'),
@@ -482,10 +481,10 @@ function doRoutingTests(graphFlow, TestClass)
             matchFailThenMatchOk: sequence(
                 CreateRouter(),
                 alternate(
-                    AddRoute({ UriPattern: "App/{controller}" }),
-                    AddRoute({ UriPattern: "{controller}", Constraints: { controller: "^Schedule$" } })
+                    AddRoute({ uriPattern: "App/{controller}" }),
+                    AddRoute({ uriPattern: "{controller}", constraints: { controller: "^Schedule$" } })
                 ),
-                AddRoute({ UriPattern: "Home", Defaults: { controller: "Home" } }),
+                AddRoute({ uriPattern: "Home", defaults: { controller: "Home" } }),
                 GetRouteMatchFromUri("~/Home"),
                 writeError('log'),
                 logProps(),
@@ -497,7 +496,7 @@ function doRoutingTests(graphFlow, TestClass)
             ),
             matchWithQuery: sequence(
                 CreateRouter(),
-                AddRoute({ UriPattern: "Home", Defaults: { controller: "Home" } }),
+                AddRoute({ uriPattern: "Home", defaults: { controller: "Home" } }),
                 alternate(
                     GetRouteMatchFromUri("~/Home?num=20"),
                     GetRouteMatchFromUri("~/Home?num=20&name=masb"),
@@ -528,7 +527,7 @@ function doRoutingTests(graphFlow, TestClass)
             ),
             matchWithEmptyQuery: sequence(
                 CreateRouter(),
-                AddRoute({ UriPattern: "Home", Defaults: { controller: "Home" } }),
+                AddRoute({ uriPattern: "Home", defaults: { controller: "Home" } }),
                 alternate(
                     GetRouteMatchFromUri("~/Home?"),
                     GetRouteMatchFromUri("~/Home?&")
@@ -543,8 +542,8 @@ function doRoutingTests(graphFlow, TestClass)
             ),
             buildUriStart1: sequence(
                 CreateRouter(),
-                AddRoute({ UriPattern: "App/{controller}/{action}/{id}", Defaults: { id: "", area: "App" } }),
-                AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index", id: "" } }),
+                AddRoute({ uriPattern: "App/{controller}/{action}/{id}", defaults: { id: "", area: "App" } }),
+                AddRoute({ uriPattern: "{controller}/{action}/{id}", defaults: { controller: "Home", action: "Index", id: "" } }),
                 alternate(
                     SetCurrentData({ area: "App", controller: "Schedule", action: "Index" }),
                     SetCurrentData({ controller: "Schedule", action: "Index" }),
@@ -663,9 +662,9 @@ function doRoutingTests(graphFlow, TestClass)
             ),
             buildUriWithConstraint: sequence(
                 CreateRouter(),
-                AddRoute({ UriPattern: "{controller}/{action}/{id}",
-                    Defaults: { controller: "Home", action: "Index", id: "" },
-                    Constraints: { controller: "^Home$", id: "^\\d*$" }}),
+                AddRoute({ uriPattern: "{controller}/{action}/{id}",
+                    defaults: { controller: "Home", action: "Index", id: "" },
+                    constraints: { controller: "^Home$", id: "^\\d*$" }}),
                 SetCurrentData({ controller: "Home", action: "Index" }),
                 catchError(alternate(
                     BuildURI({ mrk: "A", controller: "Home", action: "Details", id: "10" }),
@@ -708,7 +707,7 @@ function doRoutingTests(graphFlow, TestClass)
             buildUriWithoutData1: sequence(
                 CreateRouter(),
                 alternate(
-                    AddRoute({ UriPattern: "{controller}/{action}" })
+                    AddRoute({ uriPattern: "{controller}/{action}" })
                 ),
                 catchError(
                     alternate(
@@ -723,8 +722,8 @@ function doRoutingTests(graphFlow, TestClass)
             ),
             buildUriWithoutData2: sequence(
                 CreateRouter(),
-                AddRoute({ UriPattern: "{controller}/{action}" }),
-                AddRoute({ UriPattern: "Home" }),
+                AddRoute({ uriPattern: "{controller}/{action}" }),
+                AddRoute({ uriPattern: "Home" }),
                 catchError(
                     alternate(
                         BuildURI({ controller: "Home" }),
@@ -739,14 +738,14 @@ function doRoutingTests(graphFlow, TestClass)
             buildUriMatchingNone: sequence(
                 CreateRouter(),
                 alternate(
-                    AddRoute({ UriPattern: "" }),
-                    AddRoute({ UriPattern: "Home" }),
-                    AddRoute({ UriPattern: "Home/Index" })
+                    AddRoute({ uriPattern: "" }),
+                    AddRoute({ uriPattern: "Home" }),
+                    AddRoute({ uriPattern: "Home/Index" })
                 ),
                 catchError(BuildURI({ num: 20 })),
                 logProps(),
                 test("build URI matching 0 place-holders", function(d) {
-                    var uri = this.lastRoute.UriPattern;
+                    var uri = this.lastRoute.uriPattern;
                     if (uri=="")
                         this.assert(function() { return d.value == "~/?num=20"; });
                     else if (uri=="Home")
@@ -757,8 +756,8 @@ function doRoutingTests(graphFlow, TestClass)
             ),
             buildUriMatchFail: sequence(
                 CreateRouter(),
-                AddRoute({ UriPattern: "{controller}", Constraints: { controller: "^Schedule$" } }),
-                AddRoute({ UriPattern: "Home", Defaults: { controller: "Home" } }),
+                AddRoute({ uriPattern: "{controller}", constraints: { controller: "^Schedule$" } }),
+                AddRoute({ uriPattern: "Home", defaults: { controller: "Home" } }),
                 catchError(BuildURI({ controller: "Home" })),
                 logProps(),
                 test("build URI fail 1st, but match 2nd", function(d) {
@@ -767,7 +766,7 @@ function doRoutingTests(graphFlow, TestClass)
             ),
             buildUriWithLocationMixin: sequence(
                 CreateRouterWithLocationMixin(),
-                AddRoute({ UriPattern: "{controller}/{action}" }),
+                AddRoute({ uriPattern: "{controller}/{action}" }),
                 alternate(
                     SetLocationMixinCurrentData({ controller: "Home", action: "Index" }),
                     SetLocationMixinCurrentData({ controller: "Home", action: "Details" })
@@ -796,7 +795,7 @@ function doRoutingTests(graphFlow, TestClass)
                             CreateRouter(null, null, "/MyApp"),
                             CreateRouter(null, null, "/MyApp/")
                         ),
-                        AddRoute({ UriPattern: "" }),
+                        AddRoute({ uriPattern: "" }),
                         alternate(
                             GetRouteMatchFromUri("/MyApp"),
                             GetRouteMatchFromUri("/MyApp/")
@@ -807,7 +806,7 @@ function doRoutingTests(graphFlow, TestClass)
                             CreateRouter(null, null, ""),
                             CreateRouter(null, null, "/")
                         ),
-                        AddRoute({ UriPattern: "" }),
+                        AddRoute({ uriPattern: "" }),
                         alternate(
                             GetRouteMatchFromUri(""),
                             GetRouteMatchFromUri("/")
@@ -825,9 +824,9 @@ function doRoutingTests(graphFlow, TestClass)
             singleTestTest: sequence(
                 CreateRouter(),
                 catchError(alternate(
-                    //AddRoute({ UriPattern: "Schedule/{id}/{id}" }),
-                    //AddRoute({ UriPattern: "Schedule/{id}-{id}" }),
-                    AddRoute({ UriPattern: "Schedule/{name}-{id}/{name}/{id}" })
+                    //AddRoute({ uriPattern: "Schedule/{id}/{id}" }),
+                    //AddRoute({ uriPattern: "Schedule/{id}-{id}" }),
+                    AddRoute({ uriPattern: "Schedule/{name}-{id}/{name}/{id}" })
                 )),
                 writeError('log'),
                 test("duplicate place-holders", function(d) {

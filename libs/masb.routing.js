@@ -16,7 +16,7 @@
 ///
 ///  This will mimic the behaviour of ASP.NET routing with the following exceptions:
 ///  E.1) when building patterns:
-///         - optional parameters defined in the Defaults collection of a route
+///         - optional parameters defined in the defaults collection of a route
 ///             Here:    paramName: ""
 ///             ASP.NET: paramName = UrlParameter.Optional
 ///  E.2) when matching URI:
@@ -249,8 +249,8 @@
                     
                 if (item instanceof PlaceHolderBase) {
                     var name = item.name,
-                        constraint = route.Constraints && route.Constraints[name],
-                        def = route.Defaults && route.Defaults[name];
+                        constraint = route.constraints && route.constraints[name],
+                        def = route.defaults && route.defaults[name];
 
                     if (!matchConstraint(constraint, value))
                         return "Match failed: constraint of '{" + name + "}' did not match";
@@ -340,19 +340,19 @@
         if (!route || typeof route != 'object')
             throw new Error("Invalid route information: route argument cannot be missing");
 
-        var constraints = route.Constraints ? extend({}, route.Constraints) : {};
-        throwOnNullValue("Defaults", route.Defaults);
+        var constraints = route.constraints ? extend({}, route.constraints) : {};
+        throwOnNullValue("defaults", route.defaults);
 
         // 
         // Subclass PlaceHolder
         // 
         function PlaceHolder(name) {
             this.name = name;
-            this.isOptional = !!route.Defaults
-                && route.Defaults.hasOwnProperty(name)
-                && !isUndefined(route.Defaults[name]);
+            this.isOptional = !!route.defaults
+                && route.defaults.hasOwnProperty(name)
+                && !isUndefined(route.defaults[name]);
             if (this.isOptional)
-                this.defaultValue = route.Defaults[name];
+                this.defaultValue = route.defaults[name];
             this.isConstrained = constraints.hasOwnProperty(name);
             if (this.isConstrained) {
                 this.constraint = constraints[name];
@@ -363,7 +363,7 @@
         PlaceHolder.prototype = Object.create(PlaceHolderBase.prototype);
 
 
-        var segments = getSegments.call(this, route.UriPattern, Literal, PlaceHolder);
+        var segments = getSegments.call(this, route.uriPattern, Literal, PlaceHolder);
         var segmentsMatcher = getSegmentsMatcher.call(this, segments);
 
         // properties with extracted information from the route object
@@ -372,10 +372,10 @@
         this.contextChecks = constraints;
 
         // source object properties
-        this.UriPattern = route.UriPattern;
-        this.DataTokens = route.DataTokens;
-        this.Defaults = route.Defaults;
-        this.Constraints = route.Constraints;
+        this.uriPattern = route.uriPattern;
+        this.dataTokens = route.dataTokens;
+        this.defaults = route.defaults;
+        this.constraints = route.constraints;
 
         freeze(this);
     }
@@ -435,8 +435,8 @@
         var add = addParams.bind(params);
         add('current', currentRouteData);
         add('target', targetRouteData);
-        add('default', route.Defaults);
-        add('constraint', route.Constraints);
+        add('default', route.defaults);
+        add('constraint', route.constraints);
         add('global', globalValues);
 
         // Getting values that will be used.
@@ -576,8 +576,8 @@
                 var item = seg[itSS];
                 if (item instanceof PlaceHolderBase) {
                     var name = item.name,
-                        constraint = route.Constraints && route.Constraints[name],
-                        def = route.Defaults && route.Defaults[name],
+                        constraint = route.constraints && route.constraints[name],
+                        def = route.defaults && route.defaults[name],
                         value = data.uriValues[name];
 
                     // !(A || B) <=> !A && !B
@@ -730,13 +730,13 @@
                 var r = {}, t = {};
 
                 // Copy route data to the resulting object.
-                // Copying `DataTokens` to the tokens variable.
-                extendDefined(t, route.DataTokens);
+                // Copying `dataTokens` to the tokens variable.
+                extendDefined(t, route.dataTokens);
 
                 // Copying the default values to the used values,
                 // then overriding them with query values,
                 // and finally overriding them with route data.
-                extendDefined(r, route.Defaults);
+                extendDefined(r, route.defaults);
                 extendDefined(r, parts.queryValues);
                 extendDefined(r, values);
 
