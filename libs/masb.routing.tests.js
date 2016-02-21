@@ -161,16 +161,16 @@ function doRoutingTests(graphFlow, TestClass)
                     sequence(
                         CreateRouter(),
                         alternate(
-                            AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index", id: Router.OptionalParam } }),
-                            AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", id: Router.OptionalParam } }),
-                            AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { action: "Index", id: Router.OptionalParam } }),
-                            AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { id: Router.OptionalParam } })
+                            AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index", id: "" } }),
+                            AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", id: "" } }),
+                            AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { action: "Index", id: "" } }),
+                            AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { id: "" } })
                         )
                     ),
-                    CreateRouter({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index", id: Router.OptionalParam } }),
-                    CreateRouter({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", id: Router.OptionalParam } }),
-                    CreateRouter({ UriPattern: "{controller}/{action}/{id}", Defaults: { action: "Index", id: Router.OptionalParam } }),
-                    CreateRouter({ UriPattern: "{controller}/{action}/{id}", Defaults: { id: Router.OptionalParam } })
+                    CreateRouter({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index", id: "" } }),
+                    CreateRouter({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", id: "" } }),
+                    CreateRouter({ UriPattern: "{controller}/{action}/{id}", Defaults: { action: "Index", id: "" } }),
+                    CreateRouter({ UriPattern: "{controller}/{action}/{id}", Defaults: { id: "" } })
                 ),
                 alternate(
                     GetRouteMatchFromUri("~/Home/Index/"),
@@ -180,17 +180,17 @@ function doRoutingTests(graphFlow, TestClass)
                 writeError('warn'),
                 test("route data with default value", function(r) {
                     this.assert(function() {
-                        return r.data.controller == "Home" && r.data.action == "Index" && typeof r.data.id == 'undefined';
+                        return r.data.controller == "Home" && r.data.action == "Index" && r.data.id == "";
                     });
                 })
             ),
             routeGetFromApplicationUri: sequence(
                 CreateRouter(),
                 alternate(
-                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index", id: null } }),
-                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", id: null } }),
-                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { action: "Index", id: null } }),
-                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { id: null } })
+                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index", id: "" } }),
+                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", id: "" } }),
+                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { action: "Index", id: "" } }),
+                    AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { id: "" } })
                 ),
                 alternate(
                     GetRouteMatchFromUri("/MyApp/Home/Index/"),
@@ -200,7 +200,7 @@ function doRoutingTests(graphFlow, TestClass)
                 writeError('warn'),
                 test("route data from application uri", function(r) {
                     this.assert(function() {
-                        return r.data.controller == "Home" && r.data.action == "Index" && typeof r.data.id == 'undefined';
+                        return r.data.controller == "Home" && r.data.action == "Index" && r.data.id == "";
                     });
                 })
             ),
@@ -229,7 +229,7 @@ function doRoutingTests(graphFlow, TestClass)
                     sequence(
                         AddRoute({
                             UriPattern: "{controller}/{action}/{id}",
-                            Defaults: { controller: "Home", action: "Index", id: null } }),
+                            Defaults: { controller: "Home", action: "Index", id: "" } }),
                         alternate(
                             GetRouteMatchFromUri("~/Home//20"),
                             GetRouteMatchFromUri("~//Index/20"),
@@ -250,11 +250,11 @@ function doRoutingTests(graphFlow, TestClass)
                 alternate(
                     AddRoute({
                         UriPattern: "Schedule/{date}/{id}",
-                        Defaults: { controller: "Schedule", action: "Index", id: null },
+                        Defaults: { controller: "Schedule", action: "Index", id: "" },
                         Constraints: { date: "^\\d{4}-\\d\\d-\\d\\d$" } }),
                     AddRoute({
                         UriPattern: "Schedule/{date}/{id}",
-                        Defaults: { controller: "Schedule", action: "Index", id: null },
+                        Defaults: { controller: "Schedule", action: "Index", id: "" },
                         Constraints: { date: function(val,ctx) { return /^\d{4}-\d\d-\d\d$/g.test(val); } } })
                 ),
                 alternate(
@@ -305,6 +305,29 @@ function doRoutingTests(graphFlow, TestClass)
                 test("syntax error", function(d) {
                     this.assert(function() {
                         return d.error instanceof Error && d.error.type == "SYNTAX_ERROR";
+                    });
+                })
+            ),
+            routeValuesCannotBeNull: sequence(
+                // for now, ASP.NET does not use null values in the values
+                // only empty strings will be accepted.
+                catchError(alternate(
+                    CreateRouter({ UriPattern: "Home", Defaults: { id: null } }),
+                    CreateRouter({ }, { area: null }),
+                    sequence(
+                        CreateRouter(),
+                        AddRoute({ UriPattern: "Home", Defaults: { id: null } })
+                    )
+                )),
+                writeError('log'),
+                logProps(),
+                test("values cannot be null", function(d) {
+                        debugger;
+                    this.assert(function() {
+                        return d.error instanceof Error && (
+                                d.error.message == "Object `Defaults` must not have null properties: [\"id\"]"
+                            ||  d.error.message == "Object `globals` must not have null properties: [\"area\"]"
+                            );
                     });
                 })
             ),
@@ -367,7 +390,7 @@ function doRoutingTests(graphFlow, TestClass)
                 CreateRouter(),
                 alternate(
                     sequence(
-                        AddRoute({ UriPattern: "Schedule/{name}-{id}/{xpto}", Defaults: { name: null, id: null, xpto: null } }),
+                        AddRoute({ UriPattern: "Schedule/{name}-{id}/{xpto}", Defaults: { name: "", id: "", xpto: "" } }),
                         alternate(
                             GetRouteMatchFromUri("~/Schedule/Miguel-"),
                             GetRouteMatchFromUri("~/Schedule/-/"),
@@ -378,7 +401,7 @@ function doRoutingTests(graphFlow, TestClass)
                         )
                     ),
                     sequence(
-                        AddRoute({ UriPattern: "File/{name}-{type}", Defaults: { name: null, type: null } }),
+                        AddRoute({ UriPattern: "File/{name}-{type}", Defaults: { name: "", type: "" } }),
                         alternate(
                             GetRouteMatchFromUri("~/File/fileName-"),
                             GetRouteMatchFromUri("~/File/-txt"),
@@ -398,7 +421,7 @@ function doRoutingTests(graphFlow, TestClass)
                 CreateRouter(),
                 alternate(
                     sequence(
-                        AddRoute({ UriPattern: "Schedule/{name}-{id}/{xpto}", Defaults: { name: null, id: null, xpto: null } }),
+                        AddRoute({ UriPattern: "Schedule/{name}-{id}/{xpto}", Defaults: { name: "", id: "", xpto: "" } }),
                         alternate(
                             GetRouteMatchFromUri("~/Schedule/Miguel"),
                             GetRouteMatchFromUri("~/Schedule//any"),
@@ -406,7 +429,7 @@ function doRoutingTests(graphFlow, TestClass)
                         )
                     ),
                     sequence(
-                        AddRoute({ UriPattern: "File/{name}-{type}", Defaults: { name: null, type: null } }),
+                        AddRoute({ UriPattern: "File/{name}-{type}", Defaults: { name: "", type: "" } }),
                         alternate(
                             GetRouteMatchFromUri("~/File/fileName")
                         )
@@ -435,7 +458,7 @@ function doRoutingTests(graphFlow, TestClass)
                         })
                     ),
                     sequence(
-                        AddRoute({ UriPattern: "{x}-{y}", Defaults: { x: null } }),
+                        AddRoute({ UriPattern: "{x}-{y}", Defaults: { x: "" } }),
                         GetRouteMatchFromUri('~/---'),
                         logProps(),
                         writeError('log'),
@@ -511,8 +534,8 @@ function doRoutingTests(graphFlow, TestClass)
             ),
             buildUriStart1: sequence(
                 CreateRouter(),
-                AddRoute({ UriPattern: "App/{controller}/{action}/{id}", Defaults: { id: null, area: "App" } }),
-                AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index", id: null } }),
+                AddRoute({ UriPattern: "App/{controller}/{action}/{id}", Defaults: { id: "", area: "App" } }),
+                AddRoute({ UriPattern: "{controller}/{action}/{id}", Defaults: { controller: "Home", action: "Index", id: "" } }),
                 alternate(
                     SetCurrentData({ area: "App", controller: "Schedule", action: "Index" }),
                     SetCurrentData({ controller: "Schedule", action: "Index" }),
@@ -632,7 +655,7 @@ function doRoutingTests(graphFlow, TestClass)
             buildUriWithConstraint: sequence(
                 CreateRouter(),
                 AddRoute({ UriPattern: "{controller}/{action}/{id}",
-                    Defaults: { controller: "Home", action: "Index", id: null },
+                    Defaults: { controller: "Home", action: "Index", id: "" },
                     Constraints: { controller: "^Home$", id: "^\\d*$" }}),
                 SetCurrentData({ controller: "Home", action: "Index" }),
                 catchError(alternate(
@@ -813,6 +836,7 @@ function doRoutingTests(graphFlow, TestClass)
 
         groupedTestFunctions.push(
             getTestFunctions(alternate(
+                    tests.routeValuesCannotBeNull,
                     tests.routeWithDefault,
                     tests.routeGetFromApplicationUri,
                     tests.noValueNoDefault,

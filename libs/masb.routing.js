@@ -137,6 +137,16 @@
         return target;
     }
 
+    function throwOnNullValue(name, o) {
+        var nulls = [];
+        for(var k in o)
+            if (o.hasOwnProperty(k))
+                if (o[k] === null)
+                    nulls.push(k);
+        if (nulls.length)
+            throw new Error("Object `"+name+"` must not have null properties: "+JSON.stringify(nulls));
+    }
+
     function remLine(str, num) {
         var lines = str.split('\n');
         lines.splice(num-1, 1);
@@ -320,7 +330,11 @@
             throw new Error("Invalid route information: route argument cannot be missing");
 
         var constraints = route.Constraints ? extend({}, route.Constraints) : {};
+        throwOnNullValue("Defaults", route.Defaults);
 
+        // 
+        // Subclass PlaceHolder
+        // 
         function PlaceHolder(name) {
             this.name = name;
             this.isOptional = !!route.Defaults
@@ -336,6 +350,7 @@
             freeze(this);
         }
         PlaceHolder.prototype = Object.create(PlaceHolderBase.prototype);
+
 
         var segments = getSegments.call(this, route.UriPattern, Literal, PlaceHolder);
         var segmentsMatcher = getSegmentsMatcher.call(this, segments);
@@ -737,6 +752,7 @@
         };
 
         // values that will be used
+        throwOnNullValue("globals", opts.globals);
         var routes = opts.routes,
             globalValues = opts.globals,
             basePath = opts.basePath,
