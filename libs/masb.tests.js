@@ -1,6 +1,6 @@
-// Tests Framewok v1.1.0    2015-01-27
+// Tests Framewok v1.2.0    2016-02-20
 //  author: Miguel Angelo
-//  require: masb.flow.graph.v1.6.0.js
+//  require: masb.flow.graph.v1.7.2.js
 "use strict";
 function createTestClass(graphFlow) {
 
@@ -38,12 +38,12 @@ function createTestClass(graphFlow) {
         
         setupGraphFlow: function () {
 
-            var oldDefaultTransformer = graphFlow.defaultTransformer;
+            graphFlow.defaultTransformers.push(testTransformer);
 
             function testTransformer(f) {
-                if (f.hasOwnProperty('testFn') || f.name == "GoF" || f.name == "GoF_catch" || f.name == "NoOp")
+                if (f.hasOwnProperty('testFn') || f.name == "GoF" || f.name == "NoOp")
                     return f;
-                (window.lista = window.lista || []).push(f);
+                //(window.lista = window.lista || []).push(f);
                 function f2(/* arguments */) {
                     // Here `this` is the context of test that is running.
                     // The context contains information about the test.
@@ -57,14 +57,12 @@ function createTestClass(graphFlow) {
                     f2.inherit = f.inherit;
                 return f2;
             }
-            
-            graphFlow.defaultTransformer = testTransformer;
-    
+
             return {
                 dispose: function() {
-                    if (graphFlow.defaultTransformer !== testTransformer)
-                        throw new Error("Cannot disable markers, because other layers were added over it.");
-                    graphFlow.defaultTransformer = oldDefaultTransformer;
+                    var pop = graphFlow.defaultTransformers.pop();
+                    if (pop !== testTransformer)
+                        throw new Error("Cannot dispose transformer, because other layers were added over it.");
                 }
             };
         },
