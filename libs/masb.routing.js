@@ -451,27 +451,32 @@
                     if (!params.hasOwnProperty(name))
                         return null;
                     var param = params[name];
+                    // BUG: g is not defined here... how can it be used in the next lines?
                     var c = ifUndef(param.current, g);
-                    var t = param.target;
+                    var t = param.target; // cannot coallesce to the global value... the user wants the value to be removed.
                     var d = ifUndef(param.default, g);
 
-                    //  c   t   d | r   action
-                    // -----------+------------
-                    //  -   -   - |     stop
-                    //  a   -   - | a
-                    //  -   a   - | a
-                    //  -   -   a | a
-                    //  a   a   - | a
-                    //  a   b   - | b   clear c
-                    //  a   -   a | a
-                    //  a   -   b | a
-                    //  -   a   a | a
-                    //  -   a   b | a
-                    //  a   a   a | a
-                    //  a   a   b | a
-                    //  a   b   a | b
-                    //  b   a   a | a
-                    //  a   b   c | b
+                    // c -> current value
+                    // t -> target value
+                    // d -> default value
+                    // 
+                    //  c   t   d | r   action      | explanation
+                    // -----------+-----------------+-------------
+                    //  -   -   - |     stop        | There is no value for the PlaceHolder, not even a default value. This route cannot be rendered without this.
+                    //  a   -   - | a               | There is only a current value. Target and default don't exist. Using the current value for the PlaceHolder.
+                    //  -   a   - | a               | There is only a target value. Current and default don't exist. Using the target value for the PlaceHolder.
+                    //  -   -   a | a               | Only the default value exists. It's the default value, so we can use it for the PlaceHolder.
+                    //  a   a   - | a               | Both current and target values are equal, and there is no default value. Use the value that exists.
+                    //  a   b   - | b   clear c     | Both current and target values exist, but are different. Use target value, and clear all current values. ASP.NET behavior.
+                    //  a   -   a | a               | Current value exists and is the same as the default value, and there is no target value. Use the current value.
+                    //  a   -   b | a               | Current value exists and is different from default value, and there is no target value. Use the current value.
+                    //  -   a   a | a               | Target value exists and is the same as the default value, and there is no current value. Use the target value.
+                    //  -   a   b | a               | Target value exists and is different from default value, and there is no current value. Use target value.
+                    //  a   a   a | a               | All values are the same. Use the value.
+                    //  a   a   b | a               | Both current and target values are the same, but are different from the default. Use current/target value.
+                    //  a   b   a | b               | Both current and target are defined and different from each other. Current is the same as the default. Use target value.
+                    //  a   b   b | b               | Both current and target are defined and different from each other. Target is the same as the default. Use target value.
+                    //  a   b   c | b               | All values are defined and different from each other. Use target value.
 
                     var nc = !c || fnc,
                         nt = !t,
@@ -503,32 +508,34 @@
             }
         }
 
-        // checking remaining parameters
+        // Checking remaining parameters, that were not used in the previous stage.
+        // This means that no PlaceHolder had the same name as the paramenter.
+        // These unused values will become either `data-tokens` or parts of the URI's `query-string` when it's built.
         for (var name in params) {
             var param = params[name];
             if (!param.used) {
                 var g = param.global;
                 var c = ifUndef(param.current, g);
-                var t = param.target;
+                var t = param.target; // cannot coallesce to the global value... the user wants the value to be removed.
                 var d = ifUndef(param.default, g);
 
-                //  c   t   d | r   action
-                // -----------+------------
-                //  -   -   - | -
-                //  a   -   - | -
-                //  -   a   - | a
-                //  -   -   a |     stop
-                //  a   a   - | a
-                //  a   b   - | b
-                //  a   -   a | -   data-token
-                //  a   -   b |     stop
-                //  -   a   a | -   data-token
-                //  -   a   b |     stop
-                //  a   a   a | -   data-token
-                //  a   a   b |     stop
-                //  a   b   a |     stop
-                //  b   a   a | -   data-token
-                //  a   b   c |     stop
+                //  c   t   d | r   action      | explanation
+                // -----------+-----------------+-------------
+                //  -   -   - | -               | The remaining parameter don't have a value. Ignore it.
+                //  a   -   - | -               | There is a current value, but the target is not defined. User want's the value removed, ignore it.
+                //  -   a   - | a               | There is a target value, but no current nor default value. Include the target value, so it's rendered in the query-string.
+                //  -   -   a |     stop        | Default value has no other matching value. This route didn't match.
+                //  a   a   - | a               | There is a target value that equals the current value, but no default value. Include the value, so it's rendered in the query-string.
+                //  a   b   - | b               | There is a target value different from current value, but no default value. Include the target value, so it's rendered in the query-string.
+                //  a   -   a | -   data-token  | Default value matches the current value. Store the default value as a data-token.
+                //  a   -   b |     stop        | Default value has no other matching value. This route didn't match.
+                //  -   a   a | -   data-token  | Default value matches the target value. Store the default value as a data-token.
+                //  -   a   b |     stop        | Default value has no other matching value. This route didn't match.
+                //  a   a   a | -   data-token  | Default value matches both current and target values. Store the default value as a data-token.
+                //  a   a   b |     stop        | Default value has no other matching value. This route didn't match.
+                //  a   b   a |     stop        | Default value has no other matching value. This route didn't match.
+                //  a   b   b | -   data-token  | Default value matches the target value. Current value doen't matter. Store the default value as a data-token.
+                //  a   b   c |     stop        | Default value has no other matching value. This route didn't match.
 
                 var nc = isUndefined(c),
                     nt = isUndefined(t),
