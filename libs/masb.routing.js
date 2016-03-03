@@ -123,6 +123,20 @@
         }
     };
 
+    function RouteURI(virtualPath, route, values, dataTokens, basePath) {
+        this.virtualPath = virtualPath;
+        this.route = route;
+        this.values = values;
+        this.dataTokens = dataTokens;
+        this.basePath = basePath;
+        freeze(this);
+    }
+    RouteURI.prototype = {
+        toString: function() {
+            return this.virtualPath.replace(/^\~\\/, this.basePath);
+        }
+    };
+
 
 
 
@@ -217,8 +231,7 @@
     }
 
     function matchConstraint(constraint, value) {
-        // constraint fail
-        value = value==null ? "" : ""+value;
+        value = value===null ? "" : ""+value;
         if (typeof constraint == 'string') {
             var regex = new RegExp(constraint, 'g');
             if (!regex.test(value))
@@ -439,8 +452,10 @@
         add('constraint', route.constraints);
         add('global', globalValues);
 
-        // Getting values that will be used.
-        var result = { uriValues: {}, dataTokens: {} }, allowCurrent = true;
+        // Getting values that will be used by PlaceHolders defined in the route.
+        var uriValues = {};
+        var dataTokens = {};
+        var allowCurrent = true;
         var fnc = false;
         for (var itS = 0; itS < route.segments.length; itS++) {
             var seg = route.segments[itS];
@@ -502,7 +517,7 @@
                     else if (!nc && !nt && !nd)   r0 = t;
                     
                     param.used = true;
-                    result.uriValues[name] = r0;
+                    uriValues[name] = r0;
                     r0 = undefined;
                 }
             }
@@ -550,31 +565,32 @@
                 else if (nc  && nt  && !nd) return null;
                 else if (!nc && ect && nd ) r1 = t;
                 else if (!nc && !nt && nd ) r1 = t;
-                else if (edc && nt  && !nd) { r1=undefined; result.dataTokens[name]=d; }
+                else if (edc && nt  && !nd) { r1=undefined; dataTokens[name]=d; }
                 else if (!nc && nt  && !nd) return null;
-                else if (nc  && !nt && etd) { r1=undefined; result.dataTokens[name]=d; }
+                else if (nc  && !nt && etd) { r1=undefined; dataTokens[name]=d; }
                 else if (nc  && !nt && !nd) return null;
-                else if (edc && ect && !nd) { r1=undefined; result.dataTokens[name]=d; }
+                else if (edc && ect && !nd) { r1=undefined; dataTokens[name]=d; }
                 else if (!nc && ect && !nd) return null;
                 else if (edc && !nt && !nd) return null;
-                else if (!nc && !nt && etd) { r1=undefined; result.dataTokens[name]=d; }
+                else if (!nc && !nt && etd) { r1=undefined; dataTokens[name]=d; }
                 else if (!nc && !nt && !nd) return null;
 
-                if (typeof r1 != 'undefined')
+                if (r1 !== undefined)
                 {
                     param.used = true;
-                    result.uriValues[name] = r1;
+                    uriValues[name] = r1;
                     r1 = undefined;
                 }
             }
         }
 
-        return result;
+        return freeze({ uriValues: freeze(uriValues), dataTokens: freeze(dataTokens) });
     }
 
     function buildUri(route, data, basePath) {
         var uri = basePath;
         var tempUri = uri;
+        var uriValues = extend({}, data.uriValues);
         for (var itS = 0; itS < route.segments.length; itS++) {
             var seg = route.segments[itS];
             tempUri += tempUri[tempUri.length-1] != "/" ? "/" : "";
@@ -585,7 +601,7 @@
                     var name = item.name,
                         constraint = route.constraints && route.constraints[name],
                         def = route.defaults && route.defaults[name],
-                        value = data.uriValues[name];
+                        value = uriValues[name];
 
                     // !(A || B) <=> !A && !B
                     // !(A && B) <=> !A || !B
@@ -598,7 +614,7 @@
                         return null;
 
                     if (value) tempUri += encodeURIComponent(value);
-                    delete data.uriValues[item.name];
+                    delete uriValues[item.name];
                 }
                 else if (item instanceof Literal) {
                     segmentRequired = true;
@@ -611,9 +627,8 @@
         }
 
         var sep = '?';
-        for (var name in data.uriValues) {
-            var value = data.uriValues[name];
-            delete data.uriValues[name];
+        for (var name in uriValues) {
+            var value = uriValues[name];
             uri += uri[uri.length-1] != sep ? sep : "";
             sep = '&';
             uri += encodeURIComponent(name) + '=' + encodeURIComponent(value);
@@ -703,6 +718,29 @@
                     this, route, data, opts.virtual ? "~/" : this.basePath);
 
                 if (uri) return uri;
+            }
+
+            throw new Error("No matching route to build the URI");
+        }
+        
+        function enroute(currentRouteData, targetRouteData) {
+            opts = opts || {};
+            for (var itR = 0; itR < _routes.length; itR++) {
+                var route = _routes[itR];
+
+                // getting data to use in the virtual path
+                var data = bindUriValues.call(
+                    this, route, currentRouteData, targetRouteData, this.globalValues);
+
+                var values = freeze(extend({}, data.uriValues));
+                var tokens = freeze(extend({}, data.dataTokens));
+
+                // building virtual path with the data
+                var virtualPath = null;
+                if (data) virtualPath = buildUri.call(
+                    this, route, data, "~/");
+
+                if (virtualPath) return new RouteURI(virtualPath, route, values, tokens, this.basePath);
             }
 
             throw new Error("No matching route to build the URI");
