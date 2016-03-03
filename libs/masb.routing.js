@@ -1,7 +1,7 @@
-/// MASB-Router v0.2.6      2016-02-20
+/// MASB-Router v0.3.1      2016-03-03
 ///
 ///  Name: MASB-Router
-///  Version: 0.2.6
+///  Version: 0.3.1
 ///  Author: Miguel Angelo <masbicudo@gmail.com>
 ///  License: MIT
 ///
@@ -134,6 +134,16 @@
     RouteURI.prototype = {
         toString: function() {
             return this.virtualPath.replace(/^\~\\/, this.basePath);
+        },
+        getPathValues: function() {
+            var names = this.route.getPlaceHolderNames();
+            var r = extendFilter({}, this.values, function(k){return names.indexOf(k)>=0;});
+            return r;
+        },
+        getQueryValues: function() {
+            var names = this.route.getPlaceHolderNames();
+            var r = extendFilter({}, this.values, function(k){return names.indexOf(k)==-1;});
+            return r;
         }
     };
 
@@ -150,6 +160,14 @@
         for (var k in source)
             if (source.hasOwnProperty(k))
                 target[k] = source[k];
+        return target;
+    }
+
+    function extendFilter(target, source, filter) {
+        for (var k in source)
+            if (source.hasOwnProperty(k))
+                if (filter(k))
+                    target[k] = source[k];
         return target;
     }
 
@@ -375,6 +393,13 @@
         }
         PlaceHolder.prototype = Object.create(PlaceHolderBase.prototype);
 
+        this.getPlaceHolderNames = function() {
+            var merged = Array.prototype.concat.apply([], this.segments);
+            var r = merged
+                .filter(function(i){return i instanceof PlaceHolderBase;})
+                .map(function(ph){return ph.name;});
+            return r;
+        }
 
         var segments = getSegments.call(this, route.uriPattern, Literal, PlaceHolder);
         var segmentsMatcher = getSegmentsMatcher.call(this, segments);
