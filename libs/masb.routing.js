@@ -133,7 +133,7 @@
     }
     RouteURI.prototype = {
         toString: function() {
-            return this.virtualPath.replace(/^\~\\/, this.basePath);
+            return this.virtualPath.replace(/^\~\//, this.basePath);
         },
         getPathValues: function() {
             var names = this.route.getPlaceHolderNames();
@@ -757,15 +757,12 @@
                 var data = bindUriValues.call(
                     this, route, currentRouteData, targetRouteData, this.globalValues);
 
-                var values = freeze(extend({}, data.uriValues));
-                var tokens = freeze(extend({}, data.dataTokens));
-
                 // building virtual path with the data
                 var virtualPath = null;
                 if (data) virtualPath = buildUri.call(
                     this, route, data, "~/");
 
-                if (virtualPath) return new RouteURI(virtualPath, route, values, tokens, this.basePath);
+                if (virtualPath) return new RouteURI(virtualPath, route, data.uriValues, data.dataTokens, this.basePath);
             }
 
             throw new Error("No matching route to build the URI");
@@ -861,6 +858,7 @@
         this.makeURI = makeURI.bind(this);
         this.toVirtualPath = toVirtualPath.bind(this);
         this.toAppPath = toAppPath.bind(this);
+        this.enroute = enroute.bind(this);
         
         // PROPERTIES
         this.globalValues = globalValues || {};

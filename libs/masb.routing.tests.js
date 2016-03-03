@@ -22,12 +22,12 @@ function doRoutingTests(graphFlow, TestClass)
         return fn;
     }
     
-    function logProps() {
+    function logProps(pretty) {
         return function logProps(o) {
             if (o === null) this.log("null");
             if (typeof o === 'undefined') this.log("undefined");
             for (var k in o)
-                this.log(k + " = " + (typeof o[k] === 'undefined' ? o[k] : JSON.stringify(o[k])));
+                this.log(k + " = " + (typeof o[k] === 'undefined' ? o[k] : JSON.stringify(o[k], null, pretty)));
             return o;
         }
     }
@@ -110,6 +110,15 @@ function doRoutingTests(graphFlow, TestClass)
             this.step("BuildURI: " + JSON.stringify(target));
             this.target = target;
             var result = this.router.makeURI(this.currentData, target, {virtual: true});
+            return result;
+        };
+    }
+
+    function BuildRouteURI(target) {
+        return function BuildRouteURI() {
+            this.step("BuildRouteURI: " + JSON.stringify(target));
+            this.target = target;
+            var result = this.router.enroute(this.currentData, target, {explain: true});
             return result;
         };
     }
@@ -704,6 +713,62 @@ function doRoutingTests(graphFlow, TestClass)
                         });
                 })
             ),
+            buildRouteUriWithConstraint: sequence(
+                CreateRouter(),
+                AddRoute({ uriPattern: "{controller}/{action}/{id}",
+                    defaults: { controller: "Home", action: "Index", id: "" },
+                    constraints: { controller: "^Home$", id: "^\\d*$" }}),
+                SetCurrentData({ controller: "Home", action: "Index" }),
+                catchError(alternate(
+                    BuildRouteURI({ mrk: "A", controller: "Home", action: "Details", id: "10" }),
+                    BuildRouteURI({ mrk: "B", controller: "Home", action: "Index" }),
+                    BuildRouteURI({ mrk: "C", action: "Details", id: "10" }),
+                    BuildRouteURI({ mrk: "D", action: "Index" }),
+                    BuildRouteURI({ mrk: "E", controller: "Invalid", action: "Index" }),
+                    BuildRouteURI({ mrk: "F", controller: "Home", action: "Details", id: "xpto" }),
+                    undefined
+                )),
+                logProps(4),
+                test("build route URI info with constraint", function(d) {
+                    var t = this.target;
+                    if (t.mrk == "A")
+                        this.assert(function() {
+                            return d.value.toString() == "/MyApp/Home/Details/10?mrk=A"
+                                && d.value.virtualPath == "~/Home/Details/10?mrk=A"
+                                && JSON.stringify(d.value.getPathValues()) == '{"controller":"Home","action":"Details","id":"10"}'
+                                && JSON.stringify(d.value.getQueryValues()) == '{"mrk":"A"}';
+                        });
+                    if (t.mrk == "B")
+                        this.assert(function() {
+                            return d.value.toString() == "/MyApp/?mrk=B"
+                                && d.value.virtualPath == "~/?mrk=B"
+                                && JSON.stringify(d.value.getPathValues()) == '{"controller":"Home","action":"Index","id":""}'
+                                && JSON.stringify(d.value.getQueryValues()) == '{"mrk":"B"}';
+                        });
+                    if (t.mrk == "C")
+                        this.assert(function() {
+                            return d.value.toString() == "/MyApp/Home/Details/10?mrk=C"
+                                && d.value.virtualPath == "~/Home/Details/10?mrk=C"
+                                && JSON.stringify(d.value.getPathValues()) == '{"controller":"Home","action":"Details","id":"10"}'
+                                && JSON.stringify(d.value.getQueryValues()) == '{"mrk":"C"}';
+                        });
+                    if (t.mrk == "D")
+                        this.assert(function() {
+                            return d.value.toString() == "/MyApp/?mrk=D"
+                                && d.value.virtualPath == "~/?mrk=D"
+                                && JSON.stringify(d.value.getPathValues()) == '{"controller":"Home","action":"Index","id":""}'
+                                && JSON.stringify(d.value.getQueryValues()) == '{"mrk":"D"}';
+                        });
+                    if (t.mrk == "E")
+                        this.assert(function() {
+                            return d.error && d.error.message == "No matching route to build the URI";
+                        });
+                    if (t.mrk == "F")
+                        this.assert(function() {
+                            return d.error && d.error.message == "No matching route to build the URI";
+                        });
+                })
+            ),
             buildUriWithoutData1: sequence(
                 CreateRouter(),
                 alternate(
@@ -888,6 +953,7 @@ function doRoutingTests(graphFlow, TestClass)
                     tests.buildUriWithoutData2,
                     tests.buildUriMatchingNone,
                     tests.buildUriMatchFail,
+                    tests.buildRouteUriWithConstraint,
                     undefined // no test at all
                 )));
         
