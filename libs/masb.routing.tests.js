@@ -1,6 +1,6 @@
-// Routing Tests v0.3.1    2016-02-20
+// Routing Tests v0.3.2    2016-03-03
 //  author: Miguel Angelo
-//  require: masb.routing.v0.3.1.js
+//  require: masb.routing.v0.3.2.js
 //  require: masb.flow.graph.v1.7.2.js
 //  require: masb.tests.v1.2.0.js
 "use strict";
@@ -114,11 +114,11 @@ function doRoutingTests(graphFlow, TestClass)
         };
     }
 
-    function BuildRouteURI(target) {
+    function BuildRouteURI(target, explain) {
         return function BuildRouteURI() {
             this.step("BuildRouteURI: " + JSON.stringify(target));
             this.target = target;
-            var result = this.router.enroute(this.currentData, target, {explain: true});
+            var result = this.router.enroute(this.currentData, target, {explain: !!explain});
             return result;
         };
     }
@@ -821,12 +821,37 @@ function doRoutingTests(graphFlow, TestClass)
             ),
             buildUriMatchFail: sequence(
                 CreateRouter(),
-                AddRoute({ uriPattern: "{controller}", constraints: { controller: "^Schedule$" } }),
+                alternate(
+                    AddRoute({ uriPattern: "{controller}", defaults: { unmatchedDefault: "unmatched" } }),
+                    AddRoute({ uriPattern: "{controller}/{action}" }),
+                    AddRoute({ uriPattern: "{controller}", constraints: { controller: "^Schedule$" } })
+                ),
                 AddRoute({ uriPattern: "Home", defaults: { controller: "Home" } }),
                 catchError(BuildURI({ controller: "Home" })),
                 logProps(),
                 test("build URI fail 1st, but match 2nd", function(d) {
                     this.assert(function() { return d.value == "~/Home"; });
+                })
+            ),
+            buildRouteUriMatchFail: sequence(
+                CreateRouter(),
+                alternate(
+                    AddRoute({ uriPattern: "{controller}", defaults: { unmatchedDefault: "unmatched" } }),
+                    AddRoute({ uriPattern: "{controller}/{action}" }),
+                    AddRoute({ uriPattern: "{controller}", constraints: { controller: "^Schedule$" } })
+                ),
+                AddRoute({ uriPattern: "Home", defaults: { controller: "Home" } }),
+                catchError(BuildRouteURI({ controller: "Home" }, true)),
+                logProps(4),
+                test("build route URI fail 1st, but match 2nd (with explanation)", function(d) {
+                    this.assert(function() {
+                        return d.value.virtualPath == "~/Home"
+                            && (
+                                    d.value.previousErrors[0].error == "DEFAULT_WO_PLACEHOLDER_UNMATCHED"
+                                ||  d.value.previousErrors[0].error == "PLACEHOLDER_LEFT_EMPTY"
+                                ||  d.value.previousErrors[0].error == "CONSTRAINT_UNMATCHED"
+                            );
+                        });
                 })
             ),
             buildUriWithLocationMixin: sequence(
@@ -953,6 +978,7 @@ function doRoutingTests(graphFlow, TestClass)
                     tests.buildUriWithoutData2,
                     tests.buildUriMatchingNone,
                     tests.buildUriMatchFail,
+                    tests.buildRouteUriMatchFail,
                     tests.buildRouteUriWithConstraint,
                     undefined // no test at all
                 )));

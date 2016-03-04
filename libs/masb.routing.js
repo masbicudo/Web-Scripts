@@ -1,7 +1,7 @@
-/// MASB-Router v0.3.1      2016-03-03
+/// MASB-Router v0.3.2      2016-03-03
 ///
 ///  Name: MASB-Router
-///  Version: 0.3.1
+///  Version: 0.3.2
 ///  Author: Miguel Angelo <masbicudo@gmail.com>
 ///  License: MIT
 ///
@@ -70,7 +70,16 @@
 
 
 
+/*****************************************************************************************
+**                                                                                      **
+**    USEFUL VALUES.                                                                    **
+**                                                                                      **
+*****************************************************************************************/
+
     var undefined; // left undefined undefined
+    var freeze = Object.freeze;
+    var create = Object.create;
+    var concat = Array.prototype.concat;
 
 /*****************************************************************************************
 **                                                                                      **
@@ -87,9 +96,8 @@
         this.message = message;
         this.type = type;
     }
-    var freeze = Object.freeze;
     var types;
-    RouteError.prototype = extend(Object.create(Error.prototype), {
+    RouteError.prototype = extend(create(Error.prototype), {
         message: 'Route error.',
         name: 'RouteError',
         constructor: RouteError,
@@ -123,12 +131,13 @@
         }
     };
 
-    function RouteURI(virtualPath, route, values, dataTokens, basePath) {
+    function RouteURI(virtualPath, route, values, dataTokens, basePath, previousErrors) {
         this.virtualPath = virtualPath;
         this.route = route;
         this.values = values;
         this.dataTokens = dataTokens;
         this.basePath = basePath;
+        this.previousErrors = previousErrors;
         freeze(this);
     }
     RouteURI.prototype = {
@@ -391,10 +400,10 @@
             }
             freeze(this);
         }
-        PlaceHolder.prototype = Object.create(PlaceHolderBase.prototype);
+        PlaceHolder.prototype = create(PlaceHolderBase.prototype);
 
         this.getPlaceHolderNames = function() {
-            var merged = Array.prototype.concat.apply([], this.segments);
+            var merged = concat.apply([], this.segments);
             var r = merged
                 .filter(function(i){return i instanceof PlaceHolderBase;})
                 .map(function(ph){return ph.name;});
@@ -468,7 +477,19 @@
         return str;
     }
 
-    function bindUriValues(route, currentRouteData, targetRouteData, globalValues) {
+    function errorDefaultWoPlacehlder(name, c, t, d) {
+        return freeze({ error: "DEFAULT_WO_PLACEHOLDER_UNMATCHED", name: name, current: c, target: t, "default": d });
+    }
+    function errorPlacehlderLeftEmpty(name, c, t, d) {
+        return freeze({ error: "PLACEHOLDER_LEFT_EMPTY", name: name, current: c, target: t, "default": d });
+    }
+    function errorConstraintDidNotMatch(name, value, constraint) {
+        var c = constraint instanceof RegExp ? constraint.toString() : "FUNCTION";
+        return freeze({ error: "CONSTRAINT_UNMATCHED", name: name, value: value, constraint: c });
+    }
+    
+    function bindUriValues(route, currentRouteData, targetRouteData, globalValues, explain) {
+        explain = !!explain;
         var params = {};
         var add = addParams.bind(params);
         add('current', currentRouteData);
@@ -489,7 +510,7 @@
                 if (item instanceof PlaceHolderBase) {
                     var name = item.name;
                     if (!params.hasOwnProperty(name))
-                        return null;
+                        return explain ? errorPlacehlderLeftEmpty(name) : null;
                     var param = params[name];
                     // BUG: g is not defined here... how can it be used in the next lines?
                     var c = ifUndef(param.current, g);
@@ -525,7 +546,7 @@
                         etd = t == d || nt && nd,
                         edc = d == c || nd && nc;
                     var r0;
-                         if (nc  && nt  && nd )          return null;
+                         if (nc  && nt  && nd )           return explain ? errorPlacehlderLeftEmpty(name,c,t,d) : null;
                     else if (!nc && nt  && nd )   r0 = c;
                     else if (nc  && !nt && nd )   r0 = t;
                     else if (nc  && nt  && !nd)   r0 = d;
@@ -587,18 +608,18 @@
                      if (nc  && nt  && nd ) r1 = undefined;
                 else if (!nc && nt  && nd ) r1 = undefined;
                 else if (nc  && !nt && nd ) r1 = t;
-                else if (nc  && nt  && !nd) return null;
+                else if (nc  && nt  && !nd) return explain ? errorDefaultWoPlacehlder(name,c,t,d) : null;
                 else if (!nc && ect && nd ) r1 = t;
                 else if (!nc && !nt && nd ) r1 = t;
                 else if (edc && nt  && !nd) { r1=undefined; dataTokens[name]=d; }
-                else if (!nc && nt  && !nd) return null;
+                else if (!nc && nt  && !nd) return explain ? errorDefaultWoPlacehlder(name,c,t,d) : null;
                 else if (nc  && !nt && etd) { r1=undefined; dataTokens[name]=d; }
-                else if (nc  && !nt && !nd) return null;
+                else if (nc  && !nt && !nd) return explain ? errorDefaultWoPlacehlder(name,c,t,d) : null;
                 else if (edc && ect && !nd) { r1=undefined; dataTokens[name]=d; }
-                else if (!nc && ect && !nd) return null;
-                else if (edc && !nt && !nd) return null;
+                else if (!nc && ect && !nd) return explain ? errorDefaultWoPlacehlder(name,c,t,d) : null;
+                else if (edc && !nt && !nd) return explain ? errorDefaultWoPlacehlder(name,c,t,d) : null;
                 else if (!nc && !nt && etd) { r1=undefined; dataTokens[name]=d; }
-                else if (!nc && !nt && !nd) return null;
+                else if (!nc && !nt && !nd) return explain ? errorDefaultWoPlacehlder(name,c,t,d) : null;
 
                 if (r1 !== undefined)
                 {
@@ -612,7 +633,7 @@
         return freeze({ uriValues: freeze(uriValues), dataTokens: freeze(dataTokens) });
     }
 
-    function buildUri(route, data, basePath) {
+    function buildUri(route, data, basePath, explain) {
         var uri = basePath;
         var tempUri = uri;
         var uriValues = extend({}, data.uriValues);
@@ -636,7 +657,7 @@
                                 segmentRequired = true;
 
                     if (!matchConstraint(constraint, value))
-                        return null;
+                        return explain ? errorConstraintDidNotMatch(name, value, constraint) : null;
 
                     if (value) tempUri += encodeURIComponent(value);
                     delete uriValues[item.name];
@@ -659,7 +680,7 @@
             uri += encodeURIComponent(name) + '=' + encodeURIComponent(value);
         }
 
-        return uri;
+        return {uri: uri};
     }
 
     function mergeMixin(n, o) {
@@ -735,37 +756,44 @@
 
                 // getting data to use in the URI
                 var data = bindUriValues.call(
-                    this, route, currentRouteData, targetRouteData, this.globalValues);
+                    this, route, currentRouteData, targetRouteData, this.globalValues, false);
 
                 // building URI with the data
                 var uri = null;
                 if (data) uri = buildUri.call(
-                    this, route, data, opts.virtual ? "~/" : this.basePath);
+                    this, route, data, opts.virtual ? "~/" : this.basePath, false);
 
-                if (uri) return uri;
+                if (uri && uri.error === undefined) return uri.uri;
             }
 
             throw new Error("No matching route to build the URI");
         }
         
-        function enroute(currentRouteData, targetRouteData) {
+        function enroute(currentRouteData, targetRouteData, opts) {
             opts = opts || {};
+            var explain = !!opts.explain;
+            var errors = explain ? [] : undefined;
             for (var itR = 0; itR < _routes.length; itR++) {
                 var route = _routes[itR];
 
                 // getting data to use in the virtual path
                 var data = bindUriValues.call(
-                    this, route, currentRouteData, targetRouteData, this.globalValues);
+                    this, route, currentRouteData, targetRouteData, this.globalValues, explain);
 
                 // building virtual path with the data
                 var virtualPath = null;
-                if (data) virtualPath = buildUri.call(
-                    this, route, data, "~/");
+                if (data && data.error === undefined) virtualPath = buildUri.call(
+                    this, route, data, "~/", explain);
 
-                if (virtualPath) return new RouteURI(virtualPath, route, data.uriValues, data.dataTokens, this.basePath);
+                if (virtualPath && virtualPath.error === undefined)
+                    return new RouteURI(virtualPath.uri, route, data.uriValues, data.dataTokens, this.basePath, errors);
+                else if (explain)
+                    errors.push(freeze(extend({"#": itR, route: route}, data.error === undefined ? virtualPath : data)));
             }
 
-            throw new Error("No matching route to build the URI");
+            var e = new Error("No matching route to build the URI" + (explain ? ": see `details` property of this error object." : ""));
+            if (explain) e.details = errors;
+            throw e;
         }
 
         function matchRoute(uri, opts) {
